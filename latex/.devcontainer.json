@@ -1,0 +1,102 @@
+{
+    "name": "BFH LaTeX CI",
+    "image": "registry.gitlab.ti.bfh.ch/bfh-latex/registry/vscode:2.2.1",
+    "features": {
+        "ghcr.io/devcontainers/features/java:1": {}
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "james-yu.latex-workshop",
+                "ban.spellright",
+                "valentjn.vscode-ltex",
+                "stkb.rewrap"
+            ],
+            "settings": {
+                // General Settings
+                "files.eol": "\n",
+                "files.autoSave": "onFocusChange",
+                "editor.formatOnSave": true,
+                "rewrap.wrappingColumn": 80,
+                // Latex Settings
+                "latex-workshop.view.pdf.viewer": "tab",
+                "latex-workshop.linting.chktex.enabled": true,
+                "latex-workshop.linting.chktex.exec.path": "chktex",
+                "latex-workshop.latexindent.path": "latexindent",
+                "ltex.java.path": "/usr/local/sdkman/candidates/java/current/",
+                "latex-workshop.latex.autoBuild.run": "onSave",
+                "latex-workshop.latex.outDir": "%DIR%/_build",
+                "latex-workshop.latex.recipe.default": "lastUsed",
+                "latex-workshop.latexindent.args": [
+                    "-c",
+                    "%DIR%/_build",
+                    "%TMPFILE%",
+                    "-y=defaultIndent: '%INDENT%'"
+                ],
+                "[latex]": {
+                    "editor.formatOnPaste": false,
+                    "editor.wordWrap": "on",
+                    "editor.suggestSelection": "recentlyUsedByPrefix",
+                    "cSpell.showAutocompleteSuggestions": true,
+                    "rewrap.autoWrap.enabled": true
+                },
+                "latex-workshop.latex.tools": [
+                    {
+                        "name": "latexmkrc",
+                        "command": "latexmk",
+                        "args": [
+                            "%DOC%"
+                        ]
+                    },
+                    {
+                        "name": "lualatexmk",
+                        "command": "latexmk",
+                        "args": [
+                            "-synctex=1",
+                            "-interaction=nonstopmode",
+                            "-file-line-error",
+                            "-lualatex",
+                            "-outdir=%OUTDIR%",
+                            "--shell-escape",
+                            "%DOC%"
+                        ]
+                    },
+                    {
+                        "name": "lualatex_success_mkdir",
+                        "command": "mkdir",
+                        "args": [
+                            "-p",
+                            "_output"
+                        ]
+                    },
+                    {
+                        "name": "lualatex_success_mv",
+                        "command": "mv",
+                        "args": [
+                            "%OUTDIR%/%DOCFILE%.pdf",
+                            "_output"
+                        ]
+                    }
+                ],
+                "latex-workshop.latex.recipes": [
+                    {
+                        "name": "latexmk (latexmkrc)",
+                        "tools": [
+                            "latexmkrc"
+                        ]
+                    },
+                    {
+                        "name": "latexmk (lualatex)",
+                        "tools": [
+                            "lualatexmk",
+                            "lualatex_success_mkdir",
+                            "lualatex_success_mv"
+                        ]
+                    }
+                ]
+            }
+        }
+    },
+    "remoteUser": "vscode",
+    "postCreateCommand": "sudo apt-get update -y && sudo tlmgr option repository https://pi.kwarc.info/historic/systems/texlive/2023/tlnet-final/ && sudo apt-get install texlive-extra-utils chktex -y && sudo tlmgr update --self && sudo tlmgr install pdflscape pdfpages glossaries-english glossaries-german xurl"
+}

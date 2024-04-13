@@ -105,26 +105,17 @@
 %\begin{multicols}{2}
 \section{Introduction}
 A bit of stress can sometimes be beneficial, when we want to complete a task, as
-for example when I'm currently writing this proposal. But longer lasting stress
-or more intense stress can lead to mental and health problems like depression or
-anxiety. For this reason, it makes sense to help monitor stress to try to
-minimize the negative effects of long-time stress. With the advancements in
-wearable technologies, smart gadgets like the Apple Watch can help to detect
-stress with their onboard sensors. Machine Learning can then be applied to the
-collected data from the smart devices to predict stress. In this work, Federated
-Learning, as a way to do privacy-preserving machine learning, will be analyzed
-and compared to traditional machine learning to predict stress on an already
-collected stress-predict dataset.
+for example, when I'm currently writing this proposal. But longer-lasting stress or more intense stress can lead to mental and health problems like depression or anxiety. For this reason, it makes sense to help monitor stress to try to minimize the negative effects of long-term stress. With advancements in wearable technologies, smart gadgets like the Apple Watch can help to detect stress with their onboard sensors. Machine Learning can then be applied to the collected data from the smart devices to predict stress. In this work, Federated Learning, as a way to do privacy-preserving machine learning, will be analyzed and compared to traditional machine learning to predict stress on an already collected stress-predict dataset.
 
 \section{Related Work}
 Talha Iqbal et al.~\cite{iqbal_stress_2022} used smartwatches (namely the
 Empatica E4 watch) and created the dataset named `Stress-Predict Dataset' with
-the help of 35 healthy volunteers. The data was collected using the smartwatches
-photoplethysmogram (PPG) sensor. The raw PPG signal was then also filtered to
-obtain a clean blood volume pulse (BVP) signal, which was then passed to and
-estimation algorithm for the heart rate (HR) and inter-beat intervals (IBI)
+the help of 35 healthy volunteers. The data was collected using the smartwatches'
+photoplethysmogram (PPG) sensor. The raw PPG signal was then filtered to
+obtain a clean blood volume pulse (BVP) signal, which was then passed to an
+estimation algorithm for heart rate (HR) and inter-beat intervals (IBI)
 estimations. The volunteers underwent a series of tasks (i.e., Stroop color
-test, Trier Social Stress Test and Hyperventilation Provocation Test) to collect
+test, Trier Social Stress Test, and Hyperventilation Provocation Test) to collect
 data for the stress-predict dataset. In the same field of stress prediction
 Fauzi et al.~\cite{fauzi_comparative_2022} compared three different learning
 methods, \textit{Individual Learning}, \textit{Centralized Learning} and
@@ -132,13 +123,13 @@ methods, \textit{Individual Learning}, \textit{Centralized Learning} and
 dataset~\cite{schmidt_introducing_2018}. They used a linear regression model in
 all three learning methods and did the evaluation on the clients itself. Their
 results showed, that Federated Learning showed lesser performance on different
-metrics as individual or centralized learning.
+metrics compared to individual or centralized learning.
 
 \section{Research Question}
 In this paper, the author wants to take the same approach as Fauzi et
 al.~\cite{fauzi_comparative_2022} and apply it to the stress predict dataset
 from Talha Iqbal et al.~\cite{iqbal_stress_2022}. As a further step, instead of
-linear regression models more complex models such as neural networks will be
+linear regression models, more complex models such as neural networks will be
 analyzed on the dataset. This leads to the general research question:
 \begin{displayquote}
   `How does Federated Learning perform compared to centralized learning and
@@ -150,10 +141,10 @@ analyzed on the dataset. This leads to the general research question:
 The stress-predict dataset\footnote{\url{https://github.com/italha-d/Stress-Predict-Dataset}} from Talha Iqbal et al.~\cite{iqbal_stress_2022} will
 be used in this work. The dataset contains data from 35 healthy volunteers,
 which performed three different stress-inducing tasks (i.e., Stroop colour word
-test, interview session and hyperventilation session) with baseline/relaxation
+test, interview session and hyperventilation session) with a baseline/relaxation
 period between each task, for 60 minutes. Blood volume pulse (BVP),
 Inter-beat-intervals, and heart rate were continuously recorded using Empatica
-watches while the respiratory rate was estimated using a PPG-based respiratory
+watches, while the respiratory rate was estimated using a PPG-based respiratory
 rate estimation algorithm. The data is labeled for stress and non-stress.
 
 \subsection{Comparing Approaches}
@@ -168,42 +159,42 @@ In the \textit{Individual Learning} scenario, the dataset gets split into
 multiple different parts to simulate different clients. For each part, one
 separate model will be trained on the available data in this part. In the
 \textit{Federated Learning} scenario, the simulated clients will participate in
-a collective training. For this a public available FL framework like TensorFlow
+collective training. For this, a publicly available FL framework like TensorFlow
 Federated\footnote{\url{https://www.google.com/search?client=safari&rls=en&q=tensorflow+federated&ie=UTF-8&oe=UTF-8}}
 or
 Flower\footnote{\url{https://www.google.com/search?client=safari&rls=en&q=tensorflow+federated&ie=UTF-8&oe=UTF-8}}
-will be used. In the \textit{Centralized Learning} one model gets trained
-on all the available data in the dataset. This scenario servers as a direct
-comparison to FL, to see if FL looses any performance, while maintaining its
+will be used. In the \textit{Centralized Learning}, one model gets trained
+on all the available data in the dataset. This scenario serves as a direct
+comparison to FL, to see if FL loses any performance, while maintaining its
 strengths like data privacy.
 
 Different models (linear regression, simple neural networks etc.) will be used
 and compared in the different learning scenarios.
 
 \subsection{Evaluation}
-The datasets will be split into part to simulate individual clients and then
-each client will do an 80\%-20\% train-test split on its available data. As
-evaluation metrics, the F1 score, precision, recall and the accuracy will be
+The datasets will be split into parts to simulate individual clients, and then
+each client will perform an 80\%-20\% train-test split on its available data. As
+evaluation metrics, the F1 score, precision, recall, and accuracy will be
 used. For the federated learning approach, both client-side evaluation (the
-performance will be measured on the client-side on its test data) and
+performance will be measured on the client-side using its test data) and
 server side evaluation (the
-performance will be measured on the server-side on its global held test data) will be done.
+performance will be measured on the server-side using its global held test data) will be done.
 
 \section{Expected Results}
-Theoretically: Since FL has the ability to see all the available data from all
-the clients, but without sharing the raw data, it should show similar
+Theoretically, since FL has the ability to access all the available data from all
+the clients but without sharing the raw data, it should show similar
 performance (F1 score, precision, recall and accuracy) compared to the
-centralized trained approach. The local trained models should perform
-significantly worse compared both to the FL and centralized trained approach,
-since the local devices have only a fraction of the data available and therefore
-the models should underfit. But Fauzi et al.~\cite{fauzi_comparative_2022}
-showed in their paper, that FL underperformed on the WESAD dataset. So it's hard
-to say which results will come out. A good fitting model has to be chosen.
+centrally trained approach. The locally trained models should perform
+significantly worse compared to both the FL and centrally trained approaches
+since the local devices have only a fraction of the available data, leading the models
+to underfit. However, Fauzi et al.~\cite{fauzi_comparative_2022}
+showed in their paper that FL underperformed on the WESAD dataset. So it's hard
+to say which results will come out. A well-fitting model has to be chosen.
 
 \section{Milestones}
 \begin{enumerate}
   \item April 12, 2024 \textemdash{} Hand-in final proposal
-  \item May 05, 2024 \textemdash{} First implementation with done with simple
+  \item May 05, 2024 \textemdash{} First implementation done with simple
         linear regression model
   \item June 09, 2024 \textemdash{} Final implementations with different models
         and different evaluation techniques

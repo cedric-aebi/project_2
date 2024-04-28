@@ -1,0 +1,58 @@
+from abc import ABC, abstractmethod
+from typing import Any, Tuple
+
+import numpy as np
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
+from sklearn.model_selection import StratifiedKFold
+
+
+class AbstractModel(ABC):
+    def __init__(self, model: Any):
+        self._kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+        self._model = model
+
+    @abstractmethod
+    def get_hyperparameter_grid(self) -> dict:
+        pass
+
+    @abstractmethod
+    def fit(self, train_x: np.ndarray, train_y: np.ndarray, grid_search: bool, run_info: dict) -> None:
+        pass
+
+    def predict(self, test_x: np.ndarray) -> np.ndarray:
+        return self._model.predict(X=test_x)
+
+    def evaluate(self, pred: np.ndarray, test_y: np.ndarray, run_info: dict) -> np.ndarray:
+        scores = self.get_scores(pred=pred, y=test_y)
+        tp, tn, fp, fn = self.get_classification_results(cm=scores[4])
+        run_info["testing"] = {
+            "scores": {
+                "accuracy": scores[0],
+                "recall": scores[1],
+                "precision": scores[2],
+                "f1": scores[3],
+                "confusion_matrix": {"tp": tp, "tn": tn, "fp": fp, "fn": fn},
+            },
+        }
+        # Return confusion matrix for later plotting
+        return scores[4]
+
+    @staticmethod
+    def get_scores(pred: np.ndarray, y: np.ndarray) -> tuple[float, float, float, float, np.ndarray]:
+        acc = accuracy_score(pred, y)
+        rec = recall_score(pred, y)
+        prec = precision_score(pred, y)
+        f1 = f1_score(pred, y)
+        cm = confusion_matrix(y_true=y, y_pred=pred)
+        return acc, rec, prec, f1, cm
+
+    @staticmethod
+    def get_classification_results(cm: np.ndarray) -> tuple[int, int, int, int]:
+        tp = int(cm[1][1])
+        tn = int(cm[0][0])
+        fp = int(cm[0][1])
+        fn = int(cm[1][0])
+        return tp, tn, fp, fn
+
+    def get_fitted_model(self) -> Any:
+        return self._model

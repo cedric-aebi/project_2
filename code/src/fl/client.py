@@ -1,11 +1,10 @@
 import tensorflow as tf
 import flwr as fl
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     model = tf.keras.applications.MobileNetV2((32, 32, 3), classes=10, weights=None)
-    model.compile('adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    model.compile("adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
-
 
     class CifarClient(fl.client.NumPyClient):
         def get_parameters(self, config):
@@ -20,6 +19,5 @@ if __name__ == '__main__':
             model.set_weights(parameters)
             loss, accuracy = model.evaluate(x_test, y_test)
             return loss, len(x_test), {"accuracy": float(accuracy)}
-
 
     fl.client.start_client(server_address="[::]:8080", client=CifarClient().to_client())

@@ -2,3 +2,10 @@ flwr==1.8.0
 matplotlib==3.8.4
 tensorflow==2.15.0
 tensorflow_macos==2.15.0
+pandas==2.2.2
+scikit-learn==1.4.2
+imbalanced-learn==0.12.2
+xgboost==2.0.3
+pymongo==4.7.0
+black==24.4.2
+ruff==0.4.2

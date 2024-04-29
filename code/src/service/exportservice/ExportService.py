@@ -20,8 +20,11 @@ class ExportService:
     def export_run_to_mongodb(self, run_info: dict) -> str | None:
         run_info["_id"] = self._dict_hash(dictionary=run_info)
         if not self.__collection.find_one({"_id": run_info["_id"]}):
+            print(f"Exporting run with id {run_info['_id']}")
             self.__collection.insert_one(run_info)
             return run_info["_id"]
+        else:
+            print(f"Run with id {run_info['_id']} already exists. Not exporting.")
 
     @staticmethod
     def _dict_hash(dictionary: dict[str, Any]) -> str:

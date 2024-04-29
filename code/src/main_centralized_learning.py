@@ -1,7 +1,9 @@
+from itertools import product
 from pathlib import Path
 
 from enums.Model import Model
 from enums.ResamplingMethod import ResamplingMethod
+from model.LogisticRegressionModel import LogisticRegressionModel
 from model.XGBoostModel import XGBoostModel
 from service.datasetservice.DatasetService import DatasetService
 from service.exportservice.ExportService import ExportService
@@ -10,7 +12,8 @@ from service.trainingservice.TrainingService import TrainingService
 # ************************ DEFINE CONFIGURATION *****************************
 BASE_PATH = Path(__file__).parent.parent / "results" / "centralized"
 EXPORT_CLASS_DISTRIBUTION = False
-MODEL_CONFIGURATION = [{"name": Model.XGBOOST, "resampling_method": ResamplingMethod.SMOTE}]
+MODELS = [Model.XGBOOST]
+RESAMPLING_METHODS = [ResamplingMethod.SMOTE, ResamplingMethod.OVERSAMPLING, ResamplingMethod.UNDERSAMPLING, None]
 # ***************************************************************************
 
 if __name__ == "__main__":
@@ -27,25 +30,28 @@ if __name__ == "__main__":
     x, y, labels = dataset_service.get_features_and_labels(dataset=dataset)
 
     # Execute machine learning pipeline for each configured model
-    for config in MODEL_CONFIGURATION:
+    for model, resampling_method in product(MODELS, RESAMPLING_METHODS):
+        print(f"Executing run with: model={model}, resampling_method={resampling_method}")
         # Keep track of what has been done
-        run_info = {"model": config["name"], "pre-processing": {"resampling": {"method": config["resampling_method"]}}}
+        run_info = {"model": model.value, "pre-processing": {"resampling": {"method": resampling_method}}}
 
         x_resampled, y_resampled = dataset_service.resample(
             x=x,
             y=y,
-            method=config["resampling_method"],
+            method=resampling_method,
             run_info=run_info,
         )
         train_x, test_x, train_y, test_y = dataset_service.train_test_split(
             x=x_resampled, y=y_resampled, shuffle=True, run_info=run_info
         )
 
-        match config["name"]:
+        match model:
             case Model.XGBOOST:
                 model = XGBoostModel()
+            case Model.LOGISTIC_REGRESSION:
+                model = LogisticRegressionModel()
             case _:
-                raise Exception(f"Could not initialize model {config['name']} for config")
+                raise Exception(f"Could not initialize model {model.value} for config")
         model.fit(train_x, train_y, grid_search=True, run_info=run_info)
         pred = model.predict(test_x=test_x)
         confusion_matrix = model.evaluate(pred=pred, test_y=test_y, run_info=run_info)

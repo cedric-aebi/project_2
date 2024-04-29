@@ -7,15 +7,12 @@ from model.AbstractModel import AbstractModel
 
 class XGBoostModel(AbstractModel):
     def __init__(self):
-        super().__init__(model=XGBClassifier())
-        self.__hyperparameter_grid = {"n_estimators": range(50, 350, 50), "max_depth": range(2, 12, 2)}
-
-    def get_hyperparameter_grid(self) -> dict:
-        return self.__hyperparameter_grid
+        hyperparameter_grid = {"n_estimators": range(50, 350, 50), "max_depth": range(2, 12, 2)}
+        super().__init__(model=XGBClassifier(random_state=42), hyperparameter_grid=hyperparameter_grid)
 
     def fit(self, train_x: np.ndarray, train_y: np.ndarray, grid_search: bool, run_info: dict) -> None:
         if grid_search:
-            grid_search = GridSearchCV(self._model, self.__hyperparameter_grid, n_jobs=-1, cv=self._kfold, verbose=1)
+            grid_search = GridSearchCV(self._model, self._hyperparameter_grid, n_jobs=-1, cv=self._kfold)
             grid_result = grid_search.fit(train_x, train_y)
             self._model = grid_result.best_estimator_
             pred = self._model.predict(train_x)

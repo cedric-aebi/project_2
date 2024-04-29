@@ -40,7 +40,7 @@ class DatasetService:
             case ResamplingMethod.UNDERSAMPLING:
                 x_resampled, y_resampled = RandomUnderSampler(random_state=42).fit_resample(X=x, y=y)
             case _:
-                x_resampled, y_resampled = None, None
+                x_resampled, y_resampled = x, y
 
         run_info["pre-processing"]["resampling"]["results"] = {
             "before": {self.__labels[0]: np.count_nonzero(y == 0), self.__labels[1]: np.count_nonzero(y == 1)},

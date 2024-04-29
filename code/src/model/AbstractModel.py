@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Tuple
+from typing import Any
 
 import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
@@ -7,13 +7,13 @@ from sklearn.model_selection import StratifiedKFold
 
 
 class AbstractModel(ABC):
-    def __init__(self, model: Any):
+    def __init__(self, model: Any, hyperparameter_grid: dict | None = None) -> None:
         self._kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
         self._model = model
+        self._hyperparameter_grid = hyperparameter_grid
 
-    @abstractmethod
-    def get_hyperparameter_grid(self) -> dict:
-        pass
+    def get_hyperparameter_grid(self) -> dict | None:
+        return self._hyperparameter_grid
 
     @abstractmethod
     def fit(self, train_x: np.ndarray, train_y: np.ndarray, grid_search: bool, run_info: dict) -> None:

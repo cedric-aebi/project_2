@@ -2,12 +2,15 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from imblearn.combine import SMOTEENN
 from imblearn.over_sampling import SMOTE, RandomOverSampler
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.under_sampling import RandomUnderSampler, TomekLinks
 from numpy import ndarray
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from enums.ResamplingMethod import ResamplingMethod
+from enums.ScalingMethod import ScalingMethod
 
 
 class DatasetService:
@@ -31,19 +34,28 @@ class DatasetService:
         y = dataset[self.__label_column].values
         return x, y, self.__labels
 
-    def resample(self, x, y, method: ResamplingMethod, run_info: dict) -> tuple[np.ndarray, np.ndarray]:
+    def resample(
+        self, train_x: pd.DataFrame, train_y: np.ndarray, method: ResamplingMethod, run_info: dict
+    ) -> tuple[np.ndarray, np.ndarray]:
         match method:
             case ResamplingMethod.SMOTE:
-                x_resampled, y_resampled = SMOTE(random_state=42).fit_resample(X=x, y=y)
+                x_resampled, y_resampled = SMOTE(random_state=42).fit_resample(X=train_x, y=train_y)
             case ResamplingMethod.OVERSAMPLING:
-                x_resampled, y_resampled = RandomOverSampler(random_state=42).fit_resample(X=x, y=y)
+                x_resampled, y_resampled = RandomOverSampler(random_state=42).fit_resample(X=train_x, y=train_y)
             case ResamplingMethod.UNDERSAMPLING:
-                x_resampled, y_resampled = RandomUnderSampler(random_state=42).fit_resample(X=x, y=y)
+                x_resampled, y_resampled = RandomUnderSampler(random_state=42).fit_resample(X=train_x, y=train_y)
+            case ResamplingMethod.TL:
+                x_resampled, y_resampled = TomekLinks().fit_resample(X=train_x, y=train_y)
+            case ResamplingMethod.SMOTEENN:
+                x_resampled, y_resampled = SMOTEENN(random_state=42).fit_resample(X=train_x, y=train_y)
             case _:
-                x_resampled, y_resampled = x, y
+                x_resampled, y_resampled = train_x, train_y
 
         run_info["pre-processing"]["resampling"]["results"] = {
-            "before": {self.__labels[0]: np.count_nonzero(y == 0), self.__labels[1]: np.count_nonzero(y == 1)},
+            "before": {
+                self.__labels[0]: np.count_nonzero(train_y == 0),
+                self.__labels[1]: np.count_nonzero(train_y == 1),
+            },
             "after": {
                 self.__labels[0]: np.count_nonzero(y_resampled == 0),
                 self.__labels[1]: np.count_nonzero(y_resampled == 1),
@@ -52,9 +64,25 @@ class DatasetService:
         return x_resampled, y_resampled
 
     @staticmethod
+    def scale(train_x: np.ndarray, test_x: np.ndarray, method: ScalingMethod) -> tuple[np.ndarray, np.ndarray]:
+        match method:
+            case ScalingMethod.STANDARDSCALER:
+                scaler = StandardScaler()
+                train_x_scaled = scaler.fit_transform(train_x)
+                test_x_scaled = scaler.transform(test_x)
+            case ScalingMethod.MINMAXSCALER:
+                scaler = MinMaxScaler()
+                train_x_scaled = scaler.fit_transform(train_x)
+                test_x_scaled = scaler.transform(test_x)
+            case _:
+                train_x_scaled, test_x_scaled = train_x, test_x
+
+        return train_x_scaled, test_x_scaled
+
+    @staticmethod
     def train_test_split(
-        x: np.ndarray, y: np.ndarray, shuffle: bool, run_info: dict
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        x: pd.DataFrame, y: np.ndarray, shuffle: bool, run_info: dict
+    ) -> tuple[pd.DataFrame, np.ndarray, np.ndarray, np.ndarray]:
         split_ratio = 0.2
         train_x, test_x, train_y, test_y = train_test_split(
             x, y, test_size=split_ratio, shuffle=shuffle, random_state=42
@@ -63,6 +91,6 @@ class DatasetService:
             "split": split_ratio,
             "shuffle": shuffle,
             "train_size": len(train_x),
-            "test:size": len(test_x),
+            "test_size": len(test_x),
         }
         return train_x, test_x, train_y, test_y

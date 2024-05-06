@@ -2,25 +2,36 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import numpy as np
+import pandas as pd
+from imblearn.base import BaseSampler
+from imblearn.pipeline import Pipeline
+from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
 from sklearn.model_selection import StratifiedKFold
 
 
 class AbstractModel(ABC):
-    def __init__(self, model: Any, hyperparameter_grid: dict | None = None) -> None:
+    def __init__(
+        self, model: Any, scaler: BaseEstimator, resampler: BaseSampler, hyperparameter_grid: dict | None = None
+    ) -> None:
         self._kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
         self._model = model
         self._hyperparameter_grid = hyperparameter_grid
+        self._scaler = scaler
+        self._resampler = resampler
+        self._pipeline = Pipeline([("scaler", self._scaler), ("resampler", self._resampler), ("model", self._model)])
+        self._best_estimator = None
 
     def get_hyperparameter_grid(self) -> dict | None:
         return self._hyperparameter_grid
 
     @abstractmethod
-    def fit(self, train_x: np.ndarray, train_y: np.ndarray, grid_search: bool, run_info: dict) -> None:
+    def fit(self, train_x: pd.DataFrame, train_y: np.ndarray, grid_search: bool, run_info: dict) -> None:
         pass
 
+    @abstractmethod
     def predict(self, test_x: np.ndarray) -> np.ndarray:
-        return self._model.predict(X=test_x)
+        pass
 
     def evaluate(self, pred: np.ndarray, test_y: np.ndarray, run_info: dict) -> np.ndarray:
         scores = self.get_scores(pred=pred, y=test_y)
@@ -55,4 +66,4 @@ class AbstractModel(ABC):
         return tp, tn, fp, fn
 
     def get_fitted_model(self) -> Any:
-        return self._model
+        return self._best_estimator

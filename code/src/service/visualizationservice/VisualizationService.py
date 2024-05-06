@@ -15,20 +15,18 @@ class VisualizationService:
         dataset["Label"].value_counts().plot(kind="barh", title="Class Distribution")
         os.makedirs(path, exist_ok=True)
         fig.savefig(path / "class_distribution.png")
-        plt.close(fig=fig)
+        plt.close()
 
     @staticmethod
     def plot_confusion_matrix(cm: np.ndarray, labels: list[str], path: Path) -> None:
         os.makedirs(path, exist_ok=True)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
-        fig = disp.plot().figure_
-        fig.savefig(path / "confusion_matrix.png")
-        plt.close(fig=fig)
+        disp.plot().figure_.savefig(path / "confusion_matrix.png")
+        plt.close()
 
     @staticmethod
     def plot_roc(path: Path, test_x: np.ndarray, test_y: np.ndarray, model: Any) -> None:
         os.makedirs(path, exist_ok=True)
         disp = RocCurveDisplay.from_estimator(estimator=model, X=test_x, y=test_y)
-        fig = disp.plot().figure_
-        fig.savefig(path / "roc.png")
-        plt.close(fig=fig)
+        disp.plot().figure_.savefig(path / "roc.png")
+        plt.close()

@@ -12,13 +12,13 @@ from service.exportservice.ExportService import ExportService
 # ************************ DEFINE CONFIGURATION *****************************
 BASE_PATH = Path(__file__).parent.parent / "results" / "centralized"
 EXPORT_CLASS_DISTRIBUTION = False
-MODELS = [Model.XGBOOST]
+MODELS = [Model.XGBOOST, Model.LOGISTIC_REGRESSION]
 RESAMPLING_METHODS = [
+    ResamplingMethod.SMOTEENN,
     ResamplingMethod.SMOTE,
+    ResamplingMethod.TL,
     ResamplingMethod.OVERSAMPLING,
     ResamplingMethod.UNDERSAMPLING,
-    ResamplingMethod.TL,
-    ResamplingMethod.SMOTEENN,
     None,
 ]
 SCALING_METHODS = [ScalingMethod.STANDARDSCALER, ScalingMethod.MINMAXSCALER, None]
@@ -53,24 +53,20 @@ if __name__ == "__main__":
         # 1. Split data
         train_x, test_x, train_y, test_y = dataset_service.train_test_split(x=x, y=y, shuffle=True, run_info=run_info)
 
-        # 2. Scale
-        train_x, test_x = dataset_service.scale(train_x=train_x, test_x=test_x, method=resampling_method)
+        # 2. Get Scaler
+        scaler = dataset_service.get_scaler(method=resampling_method)
 
-        # 3. Resample
-        train_x, train_y = dataset_service.resample(
-            train_x=train_x,
-            train_y=train_y,
-            method=resampling_method,
-            run_info=run_info,
-        )
+        # 3. Get Resampler
+        resampler = dataset_service.get_resampler(method=resampling_method)
 
         match model:
             case Model.XGBOOST:
-                model = XGBoostModel()
+                model = XGBoostModel(scaler=scaler, resampler=resampler)
             case Model.LOGISTIC_REGRESSION:
-                model = LogisticRegressionModel()
+                model = LogisticRegressionModel(scaler=scaler, resampler=resampler)
             case _:
                 raise Exception(f"Could not initialize model {model.value} for config")
+
         model.fit(train_x, train_y, grid_search=True, run_info=run_info)
         pred = model.predict(test_x=test_x)
         confusion_matrix = model.evaluate(pred=pred, test_y=test_y, run_info=run_info)
@@ -84,3 +80,8 @@ if __name__ == "__main__":
             export_service.export_roc_display(
                 mongo_id=mongo_id, test_x=test_x, test_y=test_y, path=BASE_PATH, model=model.get_fitted_model()
             )
+
+        # Cleanup some memory
+        del model
+        del scaler
+        del resampler

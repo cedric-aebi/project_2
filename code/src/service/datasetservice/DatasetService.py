@@ -2,10 +2,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from imblearn.base import BaseSampler
 from imblearn.combine import SMOTEENN
 from imblearn.over_sampling import SMOTE, RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler, TomekLinks
 from numpy import ndarray
+from sklearn.base import BaseEstimator
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
@@ -18,12 +20,16 @@ class DatasetService:
         self.__path_to_dataset = (
             Path(__file__).parent.parent.parent.parent / "dataset" / "Improved_All_Combined_hr_rsp_binary.csv"
         )
+        self.__path_to_individual_datasets = Path(__file__).parent.parent.parent.parent / "dataset" / "individual"
         self.__label_column = "Label"
         self.__labels = ["No Stress", "Stress"]
         self.__not_needed_columns = [self.__label_column, "Time(sec)", "Participant"]
 
     def load_dataset(self) -> pd.DataFrame:
         return pd.read_csv(self.__path_to_dataset, sep=",")
+
+    def load_individual_dataset(self, participant: int) -> pd.DataFrame:
+        return pd.read_csv(self.__path_to_individual_datasets / f"participant_{participant}.csv", sep=",")
 
     @staticmethod
     def remove_nan(dataset: pd.DataFrame) -> pd.DataFrame:
@@ -34,50 +40,34 @@ class DatasetService:
         y = dataset[self.__label_column].values
         return x, y, self.__labels
 
-    def resample(
-        self, train_x: pd.DataFrame, train_y: np.ndarray, method: ResamplingMethod, run_info: dict
-    ) -> tuple[np.ndarray, np.ndarray]:
+    @staticmethod
+    def get_resampler(method: ResamplingMethod) -> BaseSampler | None:
         match method:
             case ResamplingMethod.SMOTE:
-                x_resampled, y_resampled = SMOTE(random_state=42).fit_resample(X=train_x, y=train_y)
+                resampler = SMOTE(random_state=42)
             case ResamplingMethod.OVERSAMPLING:
-                x_resampled, y_resampled = RandomOverSampler(random_state=42).fit_resample(X=train_x, y=train_y)
+                resampler = RandomOverSampler(random_state=42)
             case ResamplingMethod.UNDERSAMPLING:
-                x_resampled, y_resampled = RandomUnderSampler(random_state=42).fit_resample(X=train_x, y=train_y)
+                resampler = RandomUnderSampler(random_state=42)
             case ResamplingMethod.TL:
-                x_resampled, y_resampled = TomekLinks().fit_resample(X=train_x, y=train_y)
+                resampler = TomekLinks()
             case ResamplingMethod.SMOTEENN:
-                x_resampled, y_resampled = SMOTEENN(random_state=42).fit_resample(X=train_x, y=train_y)
+                resampler = SMOTEENN(random_state=42)
             case _:
-                x_resampled, y_resampled = train_x, train_y
+                resampler = None
 
-        run_info["pre-processing"]["resampling"]["results"] = {
-            "before": {
-                self.__labels[0]: np.count_nonzero(train_y == 0),
-                self.__labels[1]: np.count_nonzero(train_y == 1),
-            },
-            "after": {
-                self.__labels[0]: np.count_nonzero(y_resampled == 0),
-                self.__labels[1]: np.count_nonzero(y_resampled == 1),
-            },
-        }
-        return x_resampled, y_resampled
+        return resampler
 
     @staticmethod
-    def scale(train_x: np.ndarray, test_x: np.ndarray, method: ScalingMethod) -> tuple[np.ndarray, np.ndarray]:
+    def get_scaler(method: ScalingMethod) -> BaseEstimator | None:
         match method:
             case ScalingMethod.STANDARDSCALER:
                 scaler = StandardScaler()
-                train_x_scaled = scaler.fit_transform(train_x)
-                test_x_scaled = scaler.transform(test_x)
             case ScalingMethod.MINMAXSCALER:
                 scaler = MinMaxScaler()
-                train_x_scaled = scaler.fit_transform(train_x)
-                test_x_scaled = scaler.transform(test_x)
             case _:
-                train_x_scaled, test_x_scaled = train_x, test_x
-
-        return train_x_scaled, test_x_scaled
+                scaler = None
+        return scaler
 
     @staticmethod
     def train_test_split(
@@ -85,7 +75,7 @@ class DatasetService:
     ) -> tuple[pd.DataFrame, np.ndarray, np.ndarray, np.ndarray]:
         split_ratio = 0.2
         train_x, test_x, train_y, test_y = train_test_split(
-            x, y, test_size=split_ratio, shuffle=shuffle, random_state=42
+            x, y, test_size=split_ratio, shuffle=shuffle, random_state=42, stratify=y
         )
         run_info["data_splitting"] = {
             "split": split_ratio,

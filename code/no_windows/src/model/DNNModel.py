@@ -1,4 +1,5 @@
 import uuid
+from pathlib import Path
 
 import numpy as np
 import keras
@@ -18,7 +19,7 @@ class DNNModel(AbstractModel):
         build_model = self._build_model(number_of_features=number_of_features)
         early_stopping_callback = keras.callbacks.EarlyStopping(monitor="loss", patience=9)
         self._unique_run_id = str(uuid.uuid4())
-        log_dir = "../logs/fit/" + self._unique_run_id
+        log_dir = Path(__file__).parent.parent.parent / "logs" / self._unique_run_id
         run_info["log_dir"] = log_dir
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
         model = KerasClassifier(

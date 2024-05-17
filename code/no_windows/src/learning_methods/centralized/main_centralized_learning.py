@@ -14,7 +14,7 @@ from service.exportservice.ExportService import ExportService
 
 # ************************ DEFINE CONFIGURATION *****************************
 BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "centralized"
-MODELS = [Model.XGBOOST, Model.LOGISTIC_REGRESSION, Model.DNN]
+MODELS = [Model.DNN]
 RESAMPLING_METHODS = [
     ResamplingMethod.SMOTEENN,
     ResamplingMethod.SMOTE,
@@ -70,7 +70,7 @@ if __name__ == "__main__":
             case _:
                 raise Exception(f"Could not initialize model {model.value} for config")
 
-        model.fit(x_train=x_train_all, y_train=y_train_all, grid_search=True)
+        model.fit(x_train=x_train_all, y_train=y_train_all, grid_search=True, run_info=run_info)
 
         # Get training and testing results on centralized dataset
         pred_train_all = model.predict(x=x_train_all)

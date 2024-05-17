@@ -27,6 +27,7 @@ class XGBoostModel(AbstractModel):
             )
             grid_result = grid_search_cv.fit(x_train, y_train)
             self._best_estimator = grid_result.best_estimator_
+            run_info["best_params"] = grid_result.best_params_
         else:
             pass
             # TODO: Handle non-grid searches

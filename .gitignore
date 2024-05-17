@@ -618,3 +618,6 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/latex,windows,linux,vim,emacs,osx
 _*/
 
+# Pickles and datasets
+**/WESAD
+**/*.pkl

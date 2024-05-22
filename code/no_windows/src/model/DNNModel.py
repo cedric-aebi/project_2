@@ -6,6 +6,7 @@ import keras
 from imblearn.base import BaseSampler
 from keras import layers
 import tensorflow as tf
+from keras.src.optimizers import SGD
 from scikeras.wrappers import KerasClassifier
 from sklearn.base import BaseEstimator
 
@@ -17,10 +18,10 @@ class DNNModel(AbstractModel):
         tf.random.set_seed(42)
         keras.utils.set_random_seed(42)
         build_model = self._build_model(number_of_features=number_of_features)
-        early_stopping_callback = keras.callbacks.EarlyStopping(monitor="loss", patience=9)
+        early_stopping_callback = keras.callbacks.EarlyStopping(patience=5)
         self._unique_run_id = str(uuid.uuid4())
         log_dir = Path(__file__).parent.parent.parent / "logs" / self._unique_run_id
-        run_info["log_dir"] = log_dir
+        run_info["log_dir"] = str(log_dir)
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
         model = KerasClassifier(
             model=build_model,
@@ -28,7 +29,12 @@ class DNNModel(AbstractModel):
             batch_size=32,
             verbose=1,
             validation_split=0.2,
+            random_state=42,
+            shuffle=True,
             callbacks=[early_stopping_callback, tensorboard_callback],
+            loss="binary_crossentropy",
+            optimizer=SGD(learning_rate=0.001),
+            metrics=["accuracy"],
         )
         super().__init__(model=model, scaler=scaler, resampler=resampler)
 
@@ -42,25 +48,28 @@ class DNNModel(AbstractModel):
     def _build_model(number_of_features: int) -> keras.Sequential:
         # Define the model
         # For the non-window approach use a simpler model
-        if number_of_features == 1:
+        if number_of_features == 2:
             model = keras.Sequential()
-            model.add(layers.Dense(128, input_dim=number_of_features, activation="relu"))
-            model.add(layers.Dense(64, activation="relu"))
-            model.add(layers.Dense(32, activation="relu"))
+            model.add(layers.Dense(16, input_dim=number_of_features, activation="relu"))
+            model.add(layers.Dense(8, activation="relu"))
+            model.add(layers.Dense(4, activation="relu"))
             # Output layer with 1 neuron, sigmoid activation for binary classification
             model.add(layers.Dense(1, activation="sigmoid"))
         else:
+            # TODO Test different architectures
             model = keras.Sequential()
             model.add(layers.Dense(512, input_dim=number_of_features, activation="relu"))
+            model.add(layers.Dropout(0.2, seed=42))
             model.add(layers.Dense(256, activation="relu"))
+            model.add(layers.Dropout(0.2, seed=42))
             model.add(layers.Dense(128, activation="relu"))
+            model.add(layers.Dropout(0.2, seed=42))
             model.add(layers.Dense(64, activation="relu"))
+            model.add(layers.Dropout(0.2, seed=42))
             model.add(layers.Dense(54, activation="relu"))
+            model.add(layers.Dropout(0.2, seed=42))
             model.add(layers.Dense(50, activation="relu"))
             # Output layer with 1 neuron, sigmoid activation for binary classification
             model.add(layers.Dense(1, activation="sigmoid"))
-
-        # Compile the model
-        model.compile(loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"])
 
         return model

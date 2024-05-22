@@ -63,4 +63,4 @@ class AbstractModel(ABC):
         return tp, tn, fp, fn
 
     def get_fitted_model(self) -> Any:
-        return self._best_estimator
+        return self._pipeline

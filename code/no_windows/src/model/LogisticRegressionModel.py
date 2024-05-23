@@ -26,7 +26,7 @@ class LogisticRegressionModel(AbstractModel):
             grid_search_cv = GridSearchCV(
                 estimator=self._pipeline, param_grid=self._hyperparameter_grid, n_jobs=-1, cv=self._kfold
             )
-            grid_result = grid_search_cv.fit(x_train, y_train)
+            grid_result = grid_search_cv.fit(x_train, y_train.ravel())
             self._best_estimator = grid_result.best_estimator_
             run_info["best_params"] = grid_result.best_params_
         else:
@@ -51,3 +51,6 @@ class LogisticRegressionModel(AbstractModel):
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         return self._best_estimator.predict(x)
+
+    def get_fitted_model(self) -> BaseEstimator:
+        return self._best_estimator

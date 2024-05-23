@@ -50,3 +50,6 @@ class XGBoostModel(AbstractModel):
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         return self._best_estimator.predict(x)
+
+    def get_fitted_model(self) -> BaseEstimator:
+        return self._best_estimator

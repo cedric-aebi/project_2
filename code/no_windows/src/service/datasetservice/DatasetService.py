@@ -1,7 +1,6 @@
 import pickle
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 from imblearn.base import BaseSampler
 from imblearn.combine import SMOTEENN
@@ -44,7 +43,7 @@ class DatasetService:
             file_to_read.close()
         return x_train
 
-    def load_training_labels(self, which: str | int) -> np.ndarray:
+    def load_training_labels(self, which: str | int) -> pd.DataFrame:
         if which == "all":
             file_to_read = open(self.__path_to_datasets / "features" / "all_training_labels.pkl", "rb")
             x_train = pickle.load(file_to_read)
@@ -55,7 +54,7 @@ class DatasetService:
             file_to_read.close()
         return x_train
 
-    def load_testing_labels(self, which: str | int) -> np.ndarray:
+    def load_testing_labels(self, which: str | int) -> pd.DataFrame:
         if which == "all":
             file_to_read = open(self.__path_to_datasets / "features" / "all_testing_labels.pkl", "rb")
             x_train = pickle.load(file_to_read)

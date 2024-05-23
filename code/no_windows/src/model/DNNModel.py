@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import keras
 from imblearn.base import BaseSampler
+from imblearn.pipeline import Pipeline
 from keras import layers
 import tensorflow as tf
 from keras.src.optimizers import SGD
@@ -73,3 +74,6 @@ class DNNModel(AbstractModel):
             model.add(layers.Dense(1, activation="sigmoid"))
 
         return model
+
+    def get_fitted_model(self) -> Pipeline:
+        return self._pipeline

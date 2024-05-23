@@ -62,5 +62,6 @@ class AbstractModel(ABC):
         fn = int(cm[1][0])
         return tp, tn, fp, fn
 
-    def get_fitted_model(self) -> Any:
-        return self._pipeline
+    @abstractmethod
+    def get_fitted_model(self) -> Pipeline | BaseEstimator:
+        pass

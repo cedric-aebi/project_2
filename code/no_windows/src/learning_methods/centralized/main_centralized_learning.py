@@ -42,13 +42,14 @@ if __name__ == "__main__":
     y_test_all = pd.concat(y_test_all).to_numpy()
 
     # Execute machine learning pipeline for each configured model
-    for model, resampling_method, scaling_method in product(MODELS, RESAMPLING_METHODS, SCALING_METHODS):
+    for model_enum, resampling_method, scaling_method in product(MODELS, RESAMPLING_METHODS, SCALING_METHODS):
         print(
-            f"Executing run with: model={model}, resampling_method={resampling_method}, scaling_method={scaling_method}"
+            f"Executing run with: model={model_enum}, resampling_method={resampling_method}, "
+            f"scaling_method={scaling_method}"
         )
         # Keep track of what has been done
         run_info = {
-            "model": model.value,
+            "model": model_enum.value,
             "pre-processing": {
                 "resampling": {"method": resampling_method},
                 "scaling": {"method": scaling_method},
@@ -60,7 +61,7 @@ if __name__ == "__main__":
         scaler = dataset_service.get_scaler(method=resampling_method)
         resampler = dataset_service.get_resampler(method=resampling_method)
 
-        match model:
+        match model_enum:
             case Model.XGBOOST:
                 model = XGBoostModel(scaler=scaler, resampler=resampler)
             case Model.LOGISTIC_REGRESSION:
@@ -68,7 +69,7 @@ if __name__ == "__main__":
             case Model.DNN:
                 model = DNNModel(scaler=scaler, resampler=resampler, number_of_features=2, run_info=run_info)
             case _:
-                raise Exception(f"Could not initialize model {model.value} for config")
+                raise Exception(f"Could not initialize model {model_enum.value} for config")
 
         model.fit(x_train=x_train_all, y_train=y_train_all, grid_search=True, run_info=run_info)
 
@@ -84,8 +85,8 @@ if __name__ == "__main__":
         for subject in range(2, 36):
             x_train = dataset_service.load_training_features(which=subject).to_numpy()
             x_test = dataset_service.load_testing_features(which=subject).to_numpy()
-            y_train = dataset_service.load_training_labels(which=subject)
-            y_test = dataset_service.load_testing_labels(which=subject)
+            y_train = dataset_service.load_training_labels(which=subject).to_numpy()
+            y_test = dataset_service.load_testing_labels(which=subject).to_numpy()
 
             pred_train = model.predict(x=x_train)
             scores_train, _ = model.evaluate(pred=pred_train, y_true=y_train)
@@ -119,7 +120,7 @@ if __name__ == "__main__":
             # Export individual results
             for subject in range(2, 36):
                 x_test = dataset_service.load_testing_features(which=subject).to_numpy()
-                y_test = dataset_service.load_testing_labels(which=subject)
+                y_test = dataset_service.load_testing_labels(which=subject).to_numpy()
 
                 pred_test = model.predict(x=x_test)
                 scores_test, cm = model.evaluate(pred=pred_test, y_true=y_test)

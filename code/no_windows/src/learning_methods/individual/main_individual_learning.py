@@ -1,18 +1,19 @@
+from copy import deepcopy
 from itertools import product
 from pathlib import Path
 
 from enums.Model import Model
 from enums.ResamplingMethod import ResamplingMethod
 from enums.ScalingMethod import ScalingMethod
+from model.DNNModel import DNNModel
 from model.LogisticRegressionModel import LogisticRegressionModel
 from model.XGBoostModel import XGBoostModel
 from service.datasetservice.DatasetService import DatasetService
 from service.exportservice.ExportService import ExportService
 
 # ************************ DEFINE CONFIGURATION *****************************
-BASE_PATH = Path(__file__).parent.parent / "results" / "individual"
-EXPORT_CLASS_DISTRIBUTION = True
-MODELS = [Model.XGBOOST, Model.LOGISTIC_REGRESSION]
+BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individual"
+MODELS = [Model.DNN]
 RESAMPLING_METHODS = [
     ResamplingMethod.SMOTEENN,
     ResamplingMethod.SMOTE,
@@ -26,73 +27,92 @@ SCALING_METHODS = [ScalingMethod.STANDARDSCALER, ScalingMethod.MINMAXSCALER, Non
 
 if __name__ == "__main__":
     dataset_service = DatasetService()
-    export_service = ExportService(collection="individual")
+    export_service = ExportService(database="project_2_no_windows", collection="individual")
 
-    for participant in range(2, 36):
-        dataset = dataset_service.load_individual_dataset(participant=participant)
+    # Execute machine learning pipeline for each configured model
+    for model_enum, resampling_method, scaling_method in product(MODELS, RESAMPLING_METHODS, SCALING_METHODS):
+        print(
+            f"Executing run with: model={model_enum}, resampling_method={resampling_method}, "
+            f"scaling_method={scaling_method}"
+        )
+        # Keep track of what has been done
+        run_info = {
+            "model": model_enum.value,
+            "pre-processing": {
+                "resampling": {"method": resampling_method},
+                "scaling": {"method": scaling_method},
+            },
+            "subjects": [],
+        }
 
-        if EXPORT_CLASS_DISTRIBUTION:
-            export_service.export_class_distribution_plot(
-                dataset=dataset, base_path=BASE_PATH / f"participant_{participant}"
-            )
+        fitted_models = []
+        idx = 0
+        for subject in range(2, 36):
+            run_info["subjects"].append({"subject": subject})
 
-        dataset = dataset_service.remove_nan(dataset=dataset)
-        x, y, labels = dataset_service.get_features_and_labels(dataset=dataset)
+            x_train = dataset_service.load_training_features(which=subject).to_numpy()
+            x_test = dataset_service.load_testing_features(which=subject).to_numpy()
+            y_train = dataset_service.load_training_labels(which=subject).to_numpy().ravel()
+            y_test = dataset_service.load_testing_labels(which=subject).to_numpy().ravel()
 
-        # Execute machine learning pipeline for each configured model
-        for model, resampling_method, scaling_method in product(MODELS, RESAMPLING_METHODS, SCALING_METHODS):
-            print(
-                f"Executing run with: participant={participant}, model={model}, resampling_method={resampling_method},"
-                f" scaling_method={scaling_method}"
-            )
-            # Keep track of what has been done
-            run_info = {
-                "participant": participant,
-                "model": model.value,
-                "pre-processing": {
-                    "resampling": {"method": resampling_method},
-                    "scaling": {"method": scaling_method},
-                },
-            }
-
-            # 1. Split data
-            train_x, test_x, train_y, test_y = dataset_service.train_test_split(
-                x=x, y=y, shuffle=True, run_info=run_info
-            )
-
-            # 2. Get Scaler
             scaler = dataset_service.get_scaler(method=resampling_method)
-
-            # 3. Get Resampler
             resampler = dataset_service.get_resampler(method=resampling_method)
 
-            match model:
+            match model_enum:
                 case Model.XGBOOST:
                     model = XGBoostModel(scaler=scaler, resampler=resampler)
                 case Model.LOGISTIC_REGRESSION:
                     model = LogisticRegressionModel(scaler=scaler, resampler=resampler)
+                case Model.DNN:
+                    model = DNNModel(scaler=scaler, resampler=resampler, number_of_features=2, run_info=run_info)
                 case _:
-                    raise Exception(f"Could not initialize model {model.value} for config")
+                    raise Exception(f"Could not initialize model {model_enum.value} for config")
 
-            model.fit(train_x, train_y, grid_search=True, run_info=run_info)
-            pred = model.predict(test_x=test_x)
-            confusion_matrix = model.evaluate(pred=pred, test_y=test_y, run_info=run_info)
+            model.fit(x_train=x_train, y_train=y_train, grid_search=True, run_info=run_info["subjects"][idx])
 
-            # Export run configuration and results to mongodb
-            mongo_id = export_service.export_run_to_mongodb(run_info=run_info)
-            if mongo_id is not None:
-                export_service.export_confusion_matrix_display(
-                    cm=confusion_matrix, labels=labels, mongo_id=mongo_id, path=BASE_PATH / f"participant_{participant}"
-                )
-                export_service.export_roc_display(
-                    mongo_id=mongo_id,
-                    test_x=test_x,
-                    test_y=test_y,
-                    path=BASE_PATH / f"participant_{participant}",
-                    model=model.get_fitted_model(),
-                )
+            pred_train = model.predict(x=x_train)
+            scores_train, _ = model.evaluate(pred=pred_train, y_true=y_train)
+            pred_test = model.predict(x=x_test)
+            scores_test, _ = model.evaluate(pred=pred_test, y_true=y_test)
+
+            scores = {"training_set": scores_train, "testing_set": scores_test}
+            run_info["subjects"][idx]["scores"] = scores
+            fitted_models.append(model)
+            idx += 1
 
             # Cleanup some memory
             del model
             del scaler
             del resampler
+
+        # Export run configuration and results to mongodb
+        mongo_id = export_service.export_run_to_mongodb(run_info=run_info)
+        if mongo_id is not None:
+            # Export individual results
+            model_idx = 0
+            for subject in range(2, 36):
+                x_test = dataset_service.load_testing_features(which=subject).to_numpy()
+                y_test = dataset_service.load_testing_labels(which=subject).to_numpy().ravel()
+
+                model = fitted_models[model_idx]
+
+                pred_test = model.predict(x=x_test)
+                _, cm = model.evaluate(pred=pred_test, y_true=y_test)
+
+                export_service.export_confusion_matrix_display(
+                    cm=cm,
+                    labels=["No-Stress", "Stress"],
+                    mongo_id=mongo_id,
+                    path=BASE_PATH,
+                    which=subject,
+                )
+                export_service.export_roc_display(
+                    mongo_id=mongo_id,
+                    x_test=x_test,
+                    y_test=y_test,
+                    path=BASE_PATH,
+                    model=model.get_fitted_model(),
+                    which=subject,
+                )
+
+                model_idx += 1

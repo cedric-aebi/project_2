@@ -80,9 +80,7 @@ class Server:
         """Return an evaluation function for server-side evaluation."""
 
         # The `evaluate` function will be called after every round
-        def evaluate(
-            server_round: int, parameters: NDArrays, config: dict[str, Scalar]
-        ) -> tuple[float, dict[str, Scalar]] | None:
+        def evaluate(server_round: int, parameters: NDArrays) -> tuple[float, dict[str, Scalar]] | None:
             utils.set_model_params(model, parameters)
             loss = log_loss(self._y_test_all, model.predict_proba(self._x_test_all))
             print("Evaluate")

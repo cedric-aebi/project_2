@@ -48,8 +48,20 @@ class ExportService:
 
     @staticmethod
     def export_roc_display(
-        mongo_id: str, which: str | int, x_test: np.ndarray, y_test: np.ndarray, path: Path, model: Any
+        mongo_id: str,
+        which: str | int,
+        x_test: np.ndarray,
+        y_test: np.ndarray,
+        path: Path,
+        model: Any | None = None,
+        pred: np.ndarray | None = None,
+        estimator_name: str | None = None,
     ) -> None:
         VisualizationService.plot_roc(
-            path=path / mongo_id / f"subject_{which}", x_test=x_test, y_test=y_test, model=model
+            path=path / mongo_id / f"subject_{which}",
+            x_test=x_test,
+            y_test=y_test,
+            model=model,
+            pred=pred,
+            estimator_name=estimator_name,
         )

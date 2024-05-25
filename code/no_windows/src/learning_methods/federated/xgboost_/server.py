@@ -1,26 +1,31 @@
+from logging import INFO
 from pathlib import Path
 
+import xgboost as xgb
 import pandas as pd
 import flwr as fl
-from flwr.common import NDArrays, Scalar
+from flwr.common import log, Parameters
 from flwr.server import ServerConfig
-from imblearn.combine import SMOTEENN
+from imblearn.under_sampling import RandomUnderSampler
 from pymongo import MongoClient
 from pymongo.collection import Collection
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import log_loss
 from sklearn.preprocessing import StandardScaler
+from xgboost import Booster
 
 from enums.Model import Model
 from enums.ResamplingMethod import ResamplingMethod
 from enums.ScalingMethod import ScalingMethod
-from learning_methods.federated.logistic_regression import utils
+from learning_methods.federated.xgboost_ import utils
 from service.datasetservice.DatasetService import DatasetService
 from service.exportservice.ExportService import ExportService
 
 
 class Server:
     def __init__(self, number_of_rounds: int, base_path: Path):
+        # Global model
+        self.bst: Booster | None = None
+        self._num_local_round = 1
+
         self._number_of_rounds = number_of_rounds
         self._base_path = base_path
         self._subject_nr = "server"
@@ -43,52 +48,74 @@ class Server:
         scaler = StandardScaler()
         self._x_train_all = scaler.fit_transform(X=self._x_train_all)
         self._x_test_all = scaler.transform(X=self._x_test_all)
-        resampler = SMOTEENN(random_state=42)
+        resampler = RandomUnderSampler(random_state=42)
         self._x_train_all, self._y_train_all = resampler.fit_resample(X=self._x_train_all, y=self._y_train_all)
 
         self._collection: Collection = MongoClient().project_2_no_windows.federated
-        params = {"C": 0.001, "solver": "saga", "penalty": "l1"}
+
+        # Define best performing model params from centralized run
+        self._params = {"max_depth": 10, "objective": "binary:logistic"}
+
         self._mongo_dict = {
             "subject_nr": self._subject_nr,
-            "model": Model.LOGISTIC_REGRESSION,
+            "model": Model.XGBOOST,
             "pre-processing": {
-                "resampling": {"method": ResamplingMethod.SMOTEENN},
+                "resampling": {"method": ResamplingMethod.UNDERSAMPLING},
                 "scaling": {"method": ScalingMethod.STANDARDSCALER},
             },
-            "params": params,
+            "params": self._params,
             "rounds": [],
         }
         self._mongo_id = self._collection.insert_one(self._mongo_dict).inserted_id
 
-        # Define best performing model from centralized run
-        self._model = LogisticRegression(
-            random_state=42,
-            C=params["C"],
-            solver=params["solver"],
-            penalty=params["penalty"],
-        )
-
-        # Setting initial parameters, akin to model.compile for keras models
-        utils.set_initial_params(self._model)
+        # Reformat data to DMatrix for xgboost
+        self._train_dmatrix = utils.transform_dataset_to_dmatrix(x=self._x_train_all, y=self._y_train_all)
+        self._test_dmatrix = utils.transform_dataset_to_dmatrix(x=self._x_test_all, y=self._y_test_all)
 
     @staticmethod
     def fit_round(rnd: int) -> dict:
         """Send round number to client."""
         return {"rnd": rnd}
 
-    def get_eval_fn(self, model: LogisticRegression):
+    def get_eval_fn(self):
         """Return an evaluation function for server-side evaluation."""
 
         # The `evaluate` function will be called after every round
-        def evaluate(
-            server_round: int, parameters: NDArrays, config: dict[str, Scalar]
-        ) -> tuple[float, dict[str, Scalar]] | None:
-            utils.set_model_params(model, parameters)
-            loss = log_loss(self._y_test_all, model.predict_proba(self._x_test_all))
+        def evaluate(server_round: int, parameters: Parameters, config: dict):
+            # Build new Booster from client updates
+            if not self.bst:
+                # First round local training
+                log(INFO, "Start training at round 1")
+                empty_bst = xgb.train(
+                    self._params,
+                    self._train_dmatrix,
+                    num_boost_round=self._num_local_round,
+                    evals=[(self._test_dmatrix, "test"), (self._train_dmatrix, "train")],
+                )
+                self.config = empty_bst.save_config()
+                self.bst = empty_bst
+            else:
+                for item in parameters.tensors:
+                    global_model = bytearray(item)
+
+                # Load global model into booster
+                self.bst.load_model(global_model)
+                self.bst.load_config(self.config)
+
+            eval_results = self.bst.eval_set(
+                evals=[(self._test_dmatrix, "test")],
+                iteration=self.bst.num_boosted_rounds() - 1,
+            )
             print("Evaluate")
-            pred_train = model.predict(self._x_train_all)
+
+            class_probs = self.bst.predict(self._train_dmatrix)
+            # turns soft logit into class label
+            pred_train = utils.get_class_labels_from_probs(probs=class_probs)
             scores_train, _ = utils.evaluate_prediction(pred=pred_train, y_true=self._y_train_all)
-            pred_test = model.predict(self._x_test_all)
+
+            class_probs = self.bst.predict(self._test_dmatrix)
+            # turns soft logit into class label
+            pred_test = utils.get_class_labels_from_probs(probs=class_probs)
             scores_test, cm = utils.evaluate_prediction(pred=pred_test, y_true=self._y_test_all)
 
             scores = {"training_set": scores_train, "testing_set": scores_test}
@@ -110,11 +137,12 @@ class Server:
                     x_test=self._x_test_all,
                     y_test=self._y_test_all,
                     path=self._base_path,
-                    model=model,
                     which=self._subject_nr,
+                    pred=pred_test,
+                    estimator_name=Model.XGBOOST,
                 )
 
-            return loss, {
+            return round(float(eval_results.split("\t")[1].split(":")[1]), 4), {
                 "accuracy": scores_test["accuracy"],
                 "precision": scores_test["precision"],
                 "recall": scores_test["recall"],
@@ -123,14 +151,25 @@ class Server:
 
         return evaluate
 
+    @staticmethod
+    def evaluate_metrics_aggregation(eval_metrics):
+        """Return an aggregated metric (AUC) for evaluation."""
+        total_num = sum([num for num, _ in eval_metrics])
+        auc_aggregated = sum([metrics["AUC"] * num for num, metrics in eval_metrics]) / total_num
+        metrics_aggregated = {"AUC": auc_aggregated}
+        return metrics_aggregated
+
     def start(self) -> None:
-        strategy = fl.server.strategy.FedAvg(
-            min_available_clients=34,
+        # Define strategy
+        strategy = fl.server.strategy.FedXgbBagging(
+            fraction_fit=1,
+            fraction_evaluate=1,
             min_fit_clients=34,
-            evaluate_fn=self.get_eval_fn(self._model),
+            min_available_clients=34,
+            min_evaluate_clients=34,
+            evaluate_function=self.get_eval_fn(),
             on_fit_config_fn=self.fit_round,
             on_evaluate_config_fn=self.fit_round,
-            fraction_evaluate=1,
         )
         fl.server.start_server(
             server_address="0.0.0.0:8080",

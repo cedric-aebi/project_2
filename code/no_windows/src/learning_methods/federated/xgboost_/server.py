@@ -151,14 +151,6 @@ class Server:
 
         return evaluate
 
-    @staticmethod
-    def evaluate_metrics_aggregation(eval_metrics):
-        """Return an aggregated metric (AUC) for evaluation."""
-        total_num = sum([num for num, _ in eval_metrics])
-        auc_aggregated = sum([metrics["AUC"] * num for num, metrics in eval_metrics]) / total_num
-        metrics_aggregated = {"AUC": auc_aggregated}
-        return metrics_aggregated
-
     def start(self) -> None:
         # Define strategy
         strategy = fl.server.strategy.FedXgbBagging(

@@ -5,7 +5,6 @@ import flwr as fl
 import tensorflow as tf
 import keras
 from imblearn.under_sampling import RandomUnderSampler
-from keras.src.optimizers import SGD
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from scikeras.wrappers import KerasClassifier
@@ -43,13 +42,13 @@ class StressClient(fl.client.NumPyClient):
         keras.utils.set_random_seed(42)
 
         dataset_service = DatasetService()
-        self._export_service = ExportService(database="project_2_no_windows", collection="test")
+        self._export_service = ExportService(database="project_2_no_windows", collection="federated")
 
         self._subject_nr = subject_nr
         self._number_of_rounds = number_of_rounds
         self._base_path = base_path
 
-        self._collection: Collection = MongoClient().project_2_no_windows.test
+        self._collection: Collection = MongoClient().project_2_no_windows.federated
 
         unique_run_id = str(uuid.uuid4())
         log_dir = utils.get_log_dir(unique_run_id=unique_run_id)
@@ -81,7 +80,7 @@ class StressClient(fl.client.NumPyClient):
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
         self._model = KerasClassifier(
-            model=utils.build_model,
+            model=utils.build_model(number_of_features=2),
             epochs=1,
             batch_size=32,
             verbose=1,
@@ -89,23 +88,22 @@ class StressClient(fl.client.NumPyClient):
             random_state=42,
             shuffle=True,
             callbacks=[early_stopping_callback, tensorboard_callback],
-            loss="binary_crossentropy",
-            optimizer=SGD(learning_rate=0.001),
-            metrics=["accuracy"],
         )
+        # Initialize model without fitting it
+        self._model.initialize(self._x_train, self._y_train)
 
     def get_parameters(self, config):
-        return self._model.model.get_weights()
+        return self._model.model_.get_weights()
 
     def fit(self, parameters, config):
-        self._model.model.set_weights(parameters)
+        self._model.model_.set_weights(parameters)
         self._model.fit(self._x_train, self._y_train)
         print(f"Training finished for round {config['rnd']}")
-        return self._model.model.get_weights(), len(self._x_train), {}
+        return self._model.model_.get_weights(), len(self._x_train), {}
 
     def evaluate(self, parameters, config):
-        self._model.model.set_weights(parameters)
-        loss, accuracy = self._model.model.evaluate(self._x_test, self._y_test)
+        self._model.model_.set_weights(parameters)
+        loss, accuracy = self._model.model_.evaluate(self._x_test, self._y_test)
 
         pred_train = self._model.predict(self._x_train)
         scores_train, _ = utils.evaluate_prediction(pred=pred_train, y_true=self._y_train)

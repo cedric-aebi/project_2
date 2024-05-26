@@ -1,18 +1,20 @@
-import warnings
+import uuid
 from pathlib import Path
 
 import flwr as fl
-from imblearn.combine import SMOTEENN
+import tensorflow as tf
+import keras
+from imblearn.under_sampling import RandomUnderSampler
+from keras.src.optimizers import SGD
 from pymongo import MongoClient
 from pymongo.collection import Collection
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import log_loss
+from scikeras.wrappers import KerasClassifier
 from sklearn.preprocessing import StandardScaler
 
 from enums.Model import Model
 from enums.ResamplingMethod import ResamplingMethod
 from enums.ScalingMethod import ScalingMethod
-from learning_methods.federated.logistic_regression import utils
+from learning_methods.federated.dnn import utils
 from service.datasetservice.DatasetService import DatasetService
 from service.exportservice.ExportService import ExportService
 
@@ -37,26 +39,32 @@ class Client:
 # Define Flower client
 class StressClient(fl.client.NumPyClient):
     def __init__(self, subject_nr: int, number_of_rounds: int, base_path: Path):
+        tf.random.set_seed(42)
+        keras.utils.set_random_seed(42)
+
         dataset_service = DatasetService()
-        self._export_service = ExportService(database="project_2_no_windows", collection="federated")
+        self._export_service = ExportService(database="project_2_no_windows", collection="test")
 
         self._subject_nr = subject_nr
         self._number_of_rounds = number_of_rounds
         self._base_path = base_path
 
-        self._collection: Collection = MongoClient().project_2_no_windows.federated
-        params = {"C": 0.001, "solver": "saga", "penalty": "l1"}
+        self._collection: Collection = MongoClient().project_2_no_windows.test
+
+        unique_run_id = str(uuid.uuid4())
+        log_dir = utils.get_log_dir(unique_run_id=unique_run_id)
         self._mongo_dict = {
-            "subject_nr": subject_nr,
-            "model": Model.LOGISTIC_REGRESSION,
+            "subject_nr": self._subject_nr,
+            "model": Model.DNN,
             "pre-processing": {
-                "resampling": {"method": ResamplingMethod.SMOTEENN},
+                "resampling": {"method": ResamplingMethod.UNDERSAMPLING},
                 "scaling": {"method": ScalingMethod.STANDARDSCALER},
             },
-            "params": params,
             "rounds": [],
+            "log_dir": str(log_dir),
         }
         self._mongo_id = self._collection.insert_one(self._mongo_dict).inserted_id
+
         self._x_train = dataset_service.load_training_features(which=subject_nr).to_numpy()
         self._x_test = dataset_service.load_testing_features(which=subject_nr).to_numpy()
         self._y_train = dataset_service.load_training_labels(which=subject_nr).to_numpy()
@@ -66,40 +74,39 @@ class StressClient(fl.client.NumPyClient):
         scaler = StandardScaler()
         self._x_train = scaler.fit_transform(X=self._x_train)
         self._x_test = scaler.transform(X=self._x_test)
-        resampler = SMOTEENN(random_state=42)
+        resampler = RandomUnderSampler(random_state=42)
         self._x_train, self._y_train = resampler.fit_resample(X=self._x_train, y=self._y_train)
 
-        # Define best performing model from centralized run
-        self._model = LogisticRegression(
+        early_stopping_callback = keras.callbacks.EarlyStopping(patience=5)
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+
+        self._model = KerasClassifier(
+            model=utils.build_model,
+            epochs=1,
+            batch_size=32,
+            verbose=1,
+            validation_split=0.2,
             random_state=42,
-            C=params["C"],
-            solver=params["solver"],
-            penalty=params["penalty"],
-            max_iter=1,
-            warm_start=True,
+            shuffle=True,
+            callbacks=[early_stopping_callback, tensorboard_callback],
+            loss="binary_crossentropy",
+            optimizer=SGD(learning_rate=0.001),
+            metrics=["accuracy"],
         )
 
-        # Setting initial parameters, akin to model.compile for keras models
-        utils.set_initial_params(self._model)
+    def get_parameters(self, config):
+        return self._model.model.get_weights()
 
-    def get_parameters(self, config):  # type: ignore
-        return utils.get_model_parameters(self._model)
-
-    def fit(self, parameters, config):  # type: ignore
-        utils.set_model_params(self._model, parameters)
-        # Ignore convergence failure due to low local epochs
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            self._model.fit(self._x_train, self._y_train)
+    def fit(self, parameters, config):
+        self._model.model.set_weights(parameters)
+        self._model.fit(self._x_train, self._y_train)
         print(f"Training finished for round {config['rnd']}")
+        return self._model.model.get_weights(), len(self._x_train), {}
 
-        return list(utils.get_model_parameters(self._model)), len(self._x_train), {}
+    def evaluate(self, parameters, config):
+        self._model.model.set_weights(parameters)
+        loss, accuracy = self._model.model.evaluate(self._x_test, self._y_test)
 
-    def evaluate(self, parameters, config):  # type: ignore
-        utils.set_model_params(self._model, parameters)
-        loss = log_loss(self._y_test, self._model.predict_proba(self._x_test))
-        accuracy = self._model.score(self._x_test, self._y_test)
-        print("Evaluate")
         pred_train = self._model.predict(self._x_train)
         scores_train, _ = utils.evaluate_prediction(pred=pred_train, y_true=self._y_train)
         pred_test = self._model.predict(self._x_test)
@@ -128,4 +135,4 @@ class StressClient(fl.client.NumPyClient):
                 which=self._subject_nr,
             )
 
-        return loss, len(self._x_test), {"accuracy": accuracy}
+        return loss, len(self._x_test), {"accuracy": float(accuracy)}

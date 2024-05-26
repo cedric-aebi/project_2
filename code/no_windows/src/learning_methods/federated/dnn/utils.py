@@ -3,6 +3,7 @@ from pathlib import Path
 import keras
 import numpy as np
 from keras import layers
+from keras.src.optimizers import SGD
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
 
 
@@ -33,6 +34,7 @@ def build_model(number_of_features: int) -> keras.Sequential:
         # Output layer with 1 neuron, sigmoid activation for binary classification
         model.add(layers.Dense(1, activation="sigmoid"))
 
+    model.compile(loss="binary_crossentropy", optimizer=SGD(learning_rate=0.001), metrics=["accuracy"])
     return model
 
 

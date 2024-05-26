@@ -8,7 +8,6 @@ import flwr as fl
 from flwr.common import NDArrays, Scalar
 from flwr.server import ServerConfig
 from imblearn.under_sampling import RandomUnderSampler
-from keras.src.optimizers import SGD
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from scikeras.wrappers import KerasClassifier
@@ -32,7 +31,7 @@ class Server:
         self._subject_nr = "server"
 
         dataset_service = DatasetService()
-        self._export_service = ExportService(database="project_2_no_windows", collection="test")
+        self._export_service = ExportService(database="project_2_no_windows", collection="federated")
 
         self._x_train_all = dataset_service.load_training_features(which="all")
         self._x_test_all = dataset_service.load_testing_features(which="all")
@@ -52,7 +51,7 @@ class Server:
         resampler = RandomUnderSampler(random_state=42)
         self._x_train_all, self._y_train_all = resampler.fit_resample(X=self._x_train_all, y=self._y_train_all)
 
-        self._collection: Collection = MongoClient().project_2_no_windows.test
+        self._collection: Collection = MongoClient().project_2_no_windows.federated
 
         unique_run_id = str(uuid.uuid4())
         log_dir = utils.get_log_dir(unique_run_id=unique_run_id)
@@ -72,7 +71,7 @@ class Server:
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
         self._model = KerasClassifier(
-            model=utils.build_model,
+            model=utils.build_model(number_of_features=2),
             epochs=1,
             batch_size=32,
             verbose=1,
@@ -80,10 +79,9 @@ class Server:
             random_state=42,
             shuffle=True,
             callbacks=[early_stopping_callback, tensorboard_callback],
-            loss="binary_crossentropy",
-            optimizer=SGD(learning_rate=0.001),
-            metrics=["accuracy"],
         )
+        # Initialize model without fitting it
+        self._model.initialize(self._x_train_all, self._y_train_all)
 
     @staticmethod
     def fit_round(rnd: int) -> dict:
@@ -97,45 +95,49 @@ class Server:
         def evaluate(
             server_round: int, parameters: NDArrays, config: dict[str, Scalar]
         ) -> tuple[float, dict[str, Scalar]] | None:
-            model.model.set_weights(parameters)  # Update model with the latest parameters
-            loss, accuracy = model.model.evaluate(self._x_test_all, self._y_test_all)
-            print("Evaluate")
-            pred_train = model.predict(self._x_train_all)
-            scores_train, _ = utils.evaluate_prediction(pred=pred_train, y_true=self._y_train_all)
-            pred_test = model.predict(self._x_test_all)
-            scores_test, cm = utils.evaluate_prediction(pred=pred_test, y_true=self._y_test_all)
+            if server_round != 0:
+                model.model_.set_weights(parameters)  # Update model with the latest parameters
+                loss, accuracy = model.model_.evaluate(self._x_test_all, self._y_test_all)
+                print("Evaluate")
+                pred_train = model.predict(self._x_train_all)
+                scores_train, _ = utils.evaluate_prediction(pred=pred_train, y_true=self._y_train_all)
+                pred_test = model.predict(self._x_test_all)
+                scores_test, cm = utils.evaluate_prediction(pred=pred_test, y_true=self._y_test_all)
 
-            scores = {"training_set": scores_train, "testing_set": scores_test}
-            self._mongo_dict["rounds"].append(scores)
+                scores = {"training_set": scores_train, "testing_set": scores_test}
+                self._mongo_dict["rounds"].append(scores)
 
-            self._collection.replace_one({"_id": self._mongo_id}, self._mongo_dict)
+                self._collection.replace_one({"_id": self._mongo_id}, self._mongo_dict)
 
-            # If last round export plots of final model
-            if server_round == self._number_of_rounds:
-                self._export_service.export_confusion_matrix_display(
-                    cm=cm,
-                    labels=["No-Stress", "Stress"],
-                    mongo_id=str(self._mongo_id),
-                    path=self._base_path,
-                    which=self._subject_nr,
-                )
-                self._export_service.export_roc_display(
-                    mongo_id=str(self._mongo_id),
-                    x_test=self._x_test_all,
-                    y_test=self._y_test_all,
-                    path=self._base_path,
-                    model=model,
-                    which=self._subject_nr,
-                )
+                # If last round export plots of final model
+                if server_round == self._number_of_rounds:
+                    self._export_service.export_confusion_matrix_display(
+                        cm=cm,
+                        labels=["No-Stress", "Stress"],
+                        mongo_id=str(self._mongo_id),
+                        path=self._base_path,
+                        which=self._subject_nr,
+                    )
+                    self._export_service.export_roc_display(
+                        mongo_id=str(self._mongo_id),
+                        x_test=self._x_test_all,
+                        y_test=self._y_test_all,
+                        path=self._base_path,
+                        model=model,
+                        which=self._subject_nr,
+                    )
 
-            return loss, {"accuracy": accuracy}
+                return loss, {"accuracy": accuracy}
+            # Skip first round
+            else:
+                return 0.0, {"accuracy": 0.0}
 
         return evaluate
 
     def start(self) -> None:
         strategy = fl.server.strategy.FedAvg(
-            min_available_clients=2,
-            min_fit_clients=2,
+            min_available_clients=34,
+            min_fit_clients=34,
             evaluate_fn=self.get_eval_fn(self._model),
             on_fit_config_fn=self.fit_round,
             on_evaluate_config_fn=self.fit_round,

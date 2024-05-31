@@ -4,8 +4,6 @@ from pathlib import Path
 import pandas as pd
 
 from enums.Model import Model
-from enums.ResamplingMethod import ResamplingMethod
-from enums.ScalingMethod import ScalingMethod
 from model.DNNModel import DNNModel
 from model.LogisticRegressionModel import LogisticRegressionModel
 from model.XGBoostModel import XGBoostModel
@@ -14,21 +12,12 @@ from service.exportservice.ExportService import ExportService
 
 # ************************ DEFINE CONFIGURATION *****************************
 BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "centralized"
-MODELS = [Model.DNN]
-RESAMPLING_METHODS = [
-    ResamplingMethod.SMOTEENN,
-    ResamplingMethod.SMOTE,
-    ResamplingMethod.TL,
-    ResamplingMethod.OVERSAMPLING,
-    ResamplingMethod.UNDERSAMPLING,
-    None,
-]
-SCALING_METHODS = [ScalingMethod.STANDARDSCALER, ScalingMethod.MINMAXSCALER, None]
+MODELS = [Model.XGBOOST, Model.LOGISTIC_REGRESSION, Model.DNN]
 # ***************************************************************************
 
 if __name__ == "__main__":
     dataset_service = DatasetService()
-    export_service = ExportService(database="project_2_no_windows", collection="centralized")
+    export_service = ExportService(database="project_2_windows", collection="centralized")
 
     x_train_all = dataset_service.load_training_features(which="all")
     x_test_all = dataset_service.load_testing_features(which="all")
@@ -42,24 +31,14 @@ if __name__ == "__main__":
     y_test_all = pd.concat(y_test_all).to_numpy()
 
     # Execute machine learning pipeline for each configured model
-    for model_enum, resampling_method, scaling_method in product(MODELS, RESAMPLING_METHODS, SCALING_METHODS):
-        print(
-            f"Executing run with: model={model_enum}, resampling_method={resampling_method}, "
-            f"scaling_method={scaling_method}"
-        )
+    for model_enum in MODELS:
+        print(f"Executing run with: model={model_enum}")
         # Keep track of what has been done
         run_info = {
             "model": model_enum.value,
-            "pre-processing": {
-                "resampling": {"method": resampling_method},
-                "scaling": {"method": scaling_method},
-            },
             "centralized_scoring": {},
             "individual_scoring": [],
         }
-
-        scaler = dataset_service.get_scaler(method=resampling_method)
-        resampler = dataset_service.get_resampler(method=resampling_method)
 
         match model_enum:
             case Model.XGBOOST:

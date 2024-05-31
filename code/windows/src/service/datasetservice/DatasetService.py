@@ -2,16 +2,7 @@ import pickle
 from pathlib import Path
 
 import pandas as pd
-from imblearn.base import BaseSampler
-from imblearn.combine import SMOTEENN
-from imblearn.over_sampling import SMOTE, RandomOverSampler
-from imblearn.under_sampling import RandomUnderSampler, TomekLinks
-from sklearn.base import BaseEstimator
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-
-from enums.ResamplingMethod import ResamplingMethod
-from enums.ScalingMethod import ScalingMethod
 
 
 class DatasetService:
@@ -78,40 +69,8 @@ class DatasetService:
         return x, y, self.__labels
 
     @staticmethod
-    def get_resampler(method: ResamplingMethod) -> BaseSampler | None:
-        match method:
-            case ResamplingMethod.SMOTE:
-                resampler = SMOTE(random_state=42)
-            case ResamplingMethod.OVERSAMPLING:
-                resampler = RandomOverSampler(random_state=42)
-            case ResamplingMethod.UNDERSAMPLING:
-                resampler = RandomUnderSampler(random_state=42)
-            case ResamplingMethod.TL:
-                resampler = TomekLinks()
-            case ResamplingMethod.SMOTEENN:
-                resampler = SMOTEENN(random_state=42)
-            case _:
-                resampler = None
-
-        return resampler
-
-    @staticmethod
-    def get_scaler(method: ScalingMethod) -> BaseEstimator | None:
-        match method:
-            case ScalingMethod.STANDARDSCALER:
-                scaler = StandardScaler()
-            case ScalingMethod.MINMAXSCALER:
-                scaler = MinMaxScaler()
-            case _:
-                scaler = None
-        return scaler
-
-    @staticmethod
     def train_test_split(
-        x: pd.DataFrame, y: pd.DataFrame, shuffle: bool
+        x: pd.DataFrame, y: pd.DataFrame
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        split_ratio = 0.2
-        train_x, test_x, train_y, test_y = train_test_split(
-            x, y, test_size=split_ratio, shuffle=shuffle, random_state=42, stratify=y
-        )
+        train_x, test_x, train_y, test_y = train_test_split(x, y, test_size=0.2, random_state=42)
         return train_x, test_x, train_y, test_y

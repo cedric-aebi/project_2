@@ -1,61 +1,75 @@
 from pathlib import Path
 import pickle
 
-from service.datasetservice.DatasetService import DatasetService
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
 
 # ************************ DEFINE CONFIGURATION *****************************
-EXPORT_PATH = Path(__file__).parent.parent / "dataset" / "features"
+DATASET_PATH = Path(__file__).parent.parent / "dataset"
+FEATURES_PATH = DATASET_PATH / "features"
 # ***************************************************************************
 if __name__ == "__main__":
-    dataset_service = DatasetService()
-    dataset = dataset_service.load_dataset()
-    dataset = dataset_service.remove_nan(dataset=dataset)
+    file_to_read = open(DATASET_PATH / "all_features.pkl", "rb")
+    loaded_features = pickle.load(file_to_read)
+    file_to_read.close()
 
-    print(len(dataset))
+    file_to_read = open(DATASET_PATH / "all_label.pkl", "rb")
+    loaded_labels = pickle.load(file_to_read)
+    file_to_read.close()
 
     all_training_features = []
     all_training_labels = []
     all_testing_features = []
     all_testing_labels = []
 
-    for participant in range(2, 36):
-        subject_data = dataset[dataset["Participant"] == participant]
-        x, y, labels = dataset_service.get_features_and_labels(dataset=subject_data)
-        train_x, test_x, train_y, test_y = dataset_service.train_test_split(x=x, y=y, shuffle=True)
+    idx = 0
+    for feature in loaded_features:
+        df_feature = pd.DataFrame(feature)
+        df_feature = df_feature.reset_index(drop=True)
 
-        file_to_store = open(EXPORT_PATH / f"training_features_{participant}.pkl", "wb")
-        pickle.dump(train_x, file_to_store)
+        # Fill in nan values
+        df_feature = df_feature.ffill().bfill()
+
+        new_label = pd.DataFrame(loaded_labels[idx])
+
+        x_train, x_test, y_train, y_test = train_test_split(df_feature, new_label, test_size=0.20)
+
+        file_to_store = open(FEATURES_PATH / f"training_features_{str(idx + 2)}.pkl", "wb")
+        pickle.dump(x_train, file_to_store)
         file_to_store.close()
 
-        file_to_store = open(EXPORT_PATH / f"training_labels_{participant}.pkl", "wb")
-        pickle.dump(train_y, file_to_store)
+        file_to_store = open(FEATURES_PATH / f"training_labels_{str(idx + 2)}.pkl", "wb")
+        pickle.dump(y_train, file_to_store)
         file_to_store.close()
 
-        file_to_store = open(EXPORT_PATH / f"testing_features_{participant}.pkl", "wb")
-        pickle.dump(test_x, file_to_store)
+        file_to_store = open(FEATURES_PATH / f"testing_features_{str(idx + 2)}.pkl", "wb")
+        pickle.dump(x_test, file_to_store)
         file_to_store.close()
 
-        file_to_store = open(EXPORT_PATH / f"testing_labels_{participant}.pkl", "wb")
-        pickle.dump(test_y, file_to_store)
+        file_to_store = open(FEATURES_PATH / f"testing_labels_{str(idx + 2)}.pkl", "wb")
+        pickle.dump(y_test, file_to_store)
         file_to_store.close()
 
-        all_training_features.append(train_x)
-        all_training_labels.append(train_y)
-        all_testing_features.append(test_x)
-        all_testing_labels.append(test_y)
+        all_training_features.append(x_train)
+        all_training_labels.append(y_train)
+        all_testing_features.append(x_test)
+        all_testing_labels.append(y_test)
 
-    file_to_store = open(EXPORT_PATH / "all_training_features.pkl", "wb")
+        idx = idx + 1
+
+    file_to_store = open(FEATURES_PATH / "all_training_features.pkl", "wb")
     pickle.dump(all_training_features, file_to_store)
     file_to_store.close()
 
-    file_to_store = open(EXPORT_PATH / "all_training_labels.pkl", "wb")
+    file_to_store = open(FEATURES_PATH / "all_training_labels.pkl", "wb")
     pickle.dump(all_training_labels, file_to_store)
     file_to_store.close()
 
-    file_to_store = open(EXPORT_PATH / "all_testing_features.pkl", "wb")
+    file_to_store = open(FEATURES_PATH / "all_testing_features.pkl", "wb")
     pickle.dump(all_testing_features, file_to_store)
     file_to_store.close()
 
-    file_to_store = open(EXPORT_PATH / "all_testing_labels.pkl", "wb")
+    file_to_store = open(FEATURES_PATH / "all_testing_labels.pkl", "wb")
     pickle.dump(all_testing_labels, file_to_store)
     file_to_store.close()

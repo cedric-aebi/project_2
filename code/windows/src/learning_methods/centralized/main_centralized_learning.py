@@ -1,4 +1,3 @@
-from itertools import product
 from pathlib import Path
 
 import pandas as pd
@@ -12,7 +11,7 @@ from service.exportservice.ExportService import ExportService
 
 # ************************ DEFINE CONFIGURATION *****************************
 BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "centralized"
-MODELS = [Model.XGBOOST, Model.LOGISTIC_REGRESSION, Model.DNN]
+MODELS = [Model.LOGISTIC_REGRESSION]
 # ***************************************************************************
 
 if __name__ == "__main__":
@@ -42,11 +41,11 @@ if __name__ == "__main__":
 
         match model_enum:
             case Model.XGBOOST:
-                model = XGBoostModel(scaler=scaler, resampler=resampler)
+                model = XGBoostModel()
             case Model.LOGISTIC_REGRESSION:
-                model = LogisticRegressionModel(scaler=scaler, resampler=resampler)
+                model = LogisticRegressionModel()
             case Model.DNN:
-                model = DNNModel(scaler=scaler, resampler=resampler, number_of_features=2, run_info=run_info)
+                model = DNNModel(number_of_features=120, run_info=run_info)
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")
 
@@ -122,5 +121,3 @@ if __name__ == "__main__":
 
         # Cleanup some memory
         del model
-        del scaler
-        del resampler

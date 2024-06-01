@@ -3,8 +3,6 @@ from pathlib import Path
 
 import numpy as np
 import keras
-from imblearn.base import BaseSampler
-from imblearn.pipeline import Pipeline
 from keras import layers
 import tensorflow as tf
 from keras.src.optimizers import SGD
@@ -15,7 +13,7 @@ from model.AbstractModel import AbstractModel
 
 
 class DNNModel(AbstractModel):
-    def __init__(self, scaler: BaseEstimator, resampler: BaseSampler, number_of_features: int, run_info: dict):
+    def __init__(self, number_of_features: int, run_info: dict):
         tf.random.set_seed(42)
         keras.utils.set_random_seed(42)
         build_model = self._build_model(number_of_features=number_of_features)
@@ -31,19 +29,18 @@ class DNNModel(AbstractModel):
             verbose=1,
             validation_split=0.2,
             random_state=42,
-            shuffle=True,
             callbacks=[early_stopping_callback, tensorboard_callback],
             loss="binary_crossentropy",
             optimizer=SGD(learning_rate=0.001),
             metrics=["accuracy"],
         )
-        super().__init__(model=model, scaler=scaler, resampler=resampler)
+        super().__init__(model=model)
 
     def fit(self, x_train: np.ndarray, y_train: np.ndarray, grid_search: bool, run_info: dict) -> None:
-        self._pipeline.fit(x_train, y_train)
+        self._model.fit(x_train, y_train)
 
     def predict(self, x: np.ndarray) -> np.ndarray:
-        return self._pipeline.predict(x)
+        return self._model.predict(x)
 
     @staticmethod
     def _build_model(number_of_features: int) -> keras.Sequential:
@@ -75,5 +72,5 @@ class DNNModel(AbstractModel):
 
         return model
 
-    def get_fitted_model(self) -> Pipeline:
-        return self._pipeline
+    def get_fitted_model(self) -> BaseEstimator:
+        return self._model

@@ -1,8 +1,11 @@
+from itertools import product
 from pathlib import Path
 
 import pandas as pd
 
 from enums.Model import Model
+from enums.ResamplingMethod import ResamplingMethod
+from enums.ScalingMethod import ScalingMethod
 from model.DNNModel import DNNModel
 from model.LogisticRegressionModel import LogisticRegressionModel
 from model.XGBoostModel import XGBoostModel
@@ -11,7 +14,16 @@ from service.exportservice.ExportService import ExportService
 
 # ************************ DEFINE CONFIGURATION *****************************
 BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "centralized"
-MODELS = [Model.LOGISTIC_REGRESSION]
+MODELS = [Model.XGBOOST]
+RESAMPLING_METHODS = [
+    ResamplingMethod.SMOTEENN,
+    ResamplingMethod.SMOTE,
+    ResamplingMethod.TL,
+    ResamplingMethod.OVERSAMPLING,
+    ResamplingMethod.UNDERSAMPLING,
+    None,
+]
+SCALING_METHODS = [ScalingMethod.STANDARDSCALER, ScalingMethod.MINMAXSCALER, None]
 # ***************************************************************************
 
 if __name__ == "__main__":
@@ -30,22 +42,32 @@ if __name__ == "__main__":
     y_test_all = pd.concat(y_test_all).to_numpy()
 
     # Execute machine learning pipeline for each configured model
-    for model_enum in MODELS:
-        print(f"Executing run with: model={model_enum}")
+    for model_enum, resampling_method, scaling_method in product(MODELS, RESAMPLING_METHODS, SCALING_METHODS):
+        print(
+            f"Executing run with: model={model_enum}, resampling_method={resampling_method}, "
+            f"scaling_method={scaling_method}"
+        )
         # Keep track of what has been done
         run_info = {
             "model": model_enum.value,
+            "pre-processing": {
+                "resampling": {"method": resampling_method},
+                "scaling": {"method": scaling_method},
+            },
             "centralized_scoring": {},
             "individual_scoring": [],
         }
 
+        scaler = dataset_service.get_scaler(method=resampling_method)
+        resampler = dataset_service.get_resampler(method=resampling_method)
+
         match model_enum:
             case Model.XGBOOST:
-                model = XGBoostModel()
+                model = XGBoostModel(scaler=scaler, resampler=resampler)
             case Model.LOGISTIC_REGRESSION:
-                model = LogisticRegressionModel()
+                model = LogisticRegressionModel(scaler=scaler, resampler=resampler)
             case Model.DNN:
-                model = DNNModel(number_of_features=120, run_info=run_info)
+                model = DNNModel(scaler=scaler, resampler=resampler, number_of_features=120, run_info=run_info)
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")
 
@@ -121,3 +143,5 @@ if __name__ == "__main__":
 
         # Cleanup some memory
         del model
+        del scaler
+        del resampler

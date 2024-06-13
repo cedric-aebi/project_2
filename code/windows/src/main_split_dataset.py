@@ -2,8 +2,8 @@ from pathlib import Path
 import pickle
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
 
+from service.datasetservice.DatasetService import DatasetService
 
 # ************************ DEFINE CONFIGURATION *****************************
 DATASET_PATH = Path(__file__).parent.parent / "dataset"
@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
         new_label = pd.DataFrame(loaded_labels[idx])
 
-        x_train, x_test, y_train, y_test = train_test_split(df_feature, new_label, test_size=0.20)
+        x_train, x_test, y_train, y_test = DatasetService().train_test_split(x=df_feature, y=new_label, shuffle=True)
 
         file_to_store = open(FEATURES_PATH / f"training_features_{str(idx + 2)}.pkl", "wb")
         pickle.dump(x_train, file_to_store)

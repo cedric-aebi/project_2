@@ -34,7 +34,7 @@ class DNNModel(AbstractModel):
             shuffle=True,
             callbacks=[early_stopping_callback, tensorboard_callback],
             loss="binary_crossentropy",
-            optimizer=SGD(learning_rate=0.001),
+            optimizer="adam",
             metrics=["accuracy"],
         )
         super().__init__(model=model, scaler=scaler, resampler=resampler)
@@ -60,15 +60,10 @@ class DNNModel(AbstractModel):
             # TODO Test different architectures
             model = keras.Sequential()
             model.add(layers.Dense(512, input_dim=number_of_features, activation="relu"))
-            model.add(layers.Dropout(0.2, seed=42))
             model.add(layers.Dense(256, activation="relu"))
-            model.add(layers.Dropout(0.2, seed=42))
             model.add(layers.Dense(128, activation="relu"))
-            model.add(layers.Dropout(0.2, seed=42))
             model.add(layers.Dense(64, activation="relu"))
-            model.add(layers.Dropout(0.2, seed=42))
             model.add(layers.Dense(54, activation="relu"))
-            model.add(layers.Dropout(0.2, seed=42))
             model.add(layers.Dense(50, activation="relu"))
             # Output layer with 1 neuron, sigmoid activation for binary classification
             model.add(layers.Dense(1, activation="sigmoid"))

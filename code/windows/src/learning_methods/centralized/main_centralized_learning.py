@@ -14,7 +14,7 @@ from service.exportservice.ExportService import ExportService
 
 # ************************ DEFINE CONFIGURATION *****************************
 BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "centralized"
-MODELS = [Model.XGBOOST]
+MODELS = [Model.DNN]
 RESAMPLING_METHODS = [
     ResamplingMethod.SMOTEENN,
     ResamplingMethod.SMOTE,

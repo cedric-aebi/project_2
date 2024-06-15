@@ -12,7 +12,7 @@ from service.exportservice.ExportService import ExportService
 
 # ************************ DEFINE CONFIGURATION *****************************
 BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individual"
-MODELS = [Model.DNN]
+MODELS = [Model.LOGISTIC_REGRESSION]
 RESAMPLING_METHODS = [
     ResamplingMethod.SMOTEENN,
     ResamplingMethod.SMOTE,
@@ -26,7 +26,7 @@ SCALING_METHODS = [ScalingMethod.STANDARDSCALER, ScalingMethod.MINMAXSCALER, Non
 
 if __name__ == "__main__":
     dataset_service = DatasetService()
-    export_service = ExportService(database="project_2_no_windows", collection="individual")
+    export_service = ExportService(database="project_2_windows", collection="individual")
 
     # Execute machine learning pipeline for each configured model
     for model_enum, resampling_method, scaling_method in product(MODELS, RESAMPLING_METHODS, SCALING_METHODS):
@@ -63,7 +63,7 @@ if __name__ == "__main__":
                 case Model.LOGISTIC_REGRESSION:
                     model = LogisticRegressionModel(scaler=scaler, resampler=resampler)
                 case Model.DNN:
-                    model = DNNModel(scaler=scaler, resampler=resampler, number_of_features=2, run_info=run_info)
+                    model = DNNModel(scaler=scaler, resampler=resampler, number_of_features=120, run_info=run_info)
                 case _:
                     raise Exception(f"Could not initialize model {model_enum.value} for config")
 

@@ -12,7 +12,7 @@ from service.exportservice.ExportService import ExportService
 
 # ************************ DEFINE CONFIGURATION *****************************
 BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individual"
-MODELS = [Model.LOGISTIC_REGRESSION]
+MODELS = [Model.DNN]
 RESAMPLING_METHODS = [
     ResamplingMethod.SMOTEENN,
     ResamplingMethod.SMOTE,

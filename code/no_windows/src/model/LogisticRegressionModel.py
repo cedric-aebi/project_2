@@ -15,7 +15,7 @@ class LogisticRegressionModel(AbstractModel):
             "model__solver": ["lbfgs", "liblinear", "newton-cg", "newton-cholesky", "sag", "saga"],
         }
         super().__init__(
-            model=LogisticRegression(random_state=42, max_iter=10000),
+            model=LogisticRegression(random_state=42),
             hyperparameter_grid=hyperparameter_grid,
             scaler=scaler,
             resampler=resampler,

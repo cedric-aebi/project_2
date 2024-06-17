@@ -38,13 +38,13 @@ class Client:
 class StressClient(fl.client.NumPyClient):
     def __init__(self, subject_nr: int, number_of_rounds: int, base_path: Path):
         dataset_service = DatasetService()
-        self._export_service = ExportService(database="project_2_no_windows", collection="federated")
+        self._export_service = ExportService(database="project_2_windows", collection="federated")
 
         self._subject_nr = subject_nr
         self._number_of_rounds = number_of_rounds
         self._base_path = base_path
 
-        self._collection: Collection = MongoClient().project_2_no_windows.federated
+        self._collection: Collection = MongoClient().project_2_windows.federated
         params = {"C": 0.001, "solver": "saga", "penalty": "l1"}
         self._mongo_dict = {
             "subject_nr": subject_nr,

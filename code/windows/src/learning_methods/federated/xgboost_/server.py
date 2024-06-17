@@ -31,7 +31,7 @@ class Server:
         self._subject_nr = "server"
 
         dataset_service = DatasetService()
-        self._export_service = ExportService(database="project_2_no_windows", collection="federated")
+        self._export_service = ExportService(database="project_2_windows", collection="federated")
 
         self._x_train_all = dataset_service.load_training_features(which="all")
         self._x_test_all = dataset_service.load_testing_features(which="all")
@@ -51,7 +51,7 @@ class Server:
         resampler = RandomUnderSampler(random_state=42)
         self._x_train_all, self._y_train_all = resampler.fit_resample(X=self._x_train_all, y=self._y_train_all)
 
-        self._collection: Collection = MongoClient().project_2_no_windows.federated
+        self._collection: Collection = MongoClient().project_2_windows.federated
 
         # Define best performing model params from centralized run
         self._params = {"max_depth": 10, "objective": "binary:logistic"}

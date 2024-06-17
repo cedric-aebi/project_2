@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from learning_methods.federated.dnn.server import Server as DNNServer
 if __name__ == "__main__":
     MODEL = Model.DNN
     NUMBER_OF_ROUNDS = 30
+    # Disable GPU
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
     match MODEL:
         case Model.LOGISTIC_REGRESSION:

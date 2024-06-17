@@ -7,7 +7,7 @@ import keras
 import flwr as fl
 from flwr.common import NDArrays, Scalar
 from flwr.server import ServerConfig
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.combine import SMOTEENN
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from scikeras.wrappers import KerasClassifier
@@ -31,7 +31,7 @@ class Server:
         self._subject_nr = "server"
 
         dataset_service = DatasetService()
-        self._export_service = ExportService(database="project_2_no_windows", collection="federated")
+        self._export_service = ExportService(database="project_2_windows", collection="federated")
 
         self._x_train_all = dataset_service.load_training_features(which="all")
         self._x_test_all = dataset_service.load_testing_features(which="all")
@@ -48,10 +48,10 @@ class Server:
         scaler = StandardScaler()
         self._x_train_all = scaler.fit_transform(X=self._x_train_all)
         self._x_test_all = scaler.transform(X=self._x_test_all)
-        resampler = RandomUnderSampler(random_state=42)
+        resampler = SMOTEENN(random_state=42)
         self._x_train_all, self._y_train_all = resampler.fit_resample(X=self._x_train_all, y=self._y_train_all)
 
-        self._collection: Collection = MongoClient().project_2_no_windows.federated
+        self._collection: Collection = MongoClient().project_2_windows.federated
 
         unique_run_id = str(uuid.uuid4())
         log_dir = utils.get_log_dir(unique_run_id=unique_run_id)
@@ -59,7 +59,7 @@ class Server:
             "subject_nr": self._subject_nr,
             "model": Model.DNN,
             "pre-processing": {
-                "resampling": {"method": ResamplingMethod.UNDERSAMPLING},
+                "resampling": {"method": ResamplingMethod.SMOTEENN},
                 "scaling": {"method": ScalingMethod.STANDARDSCALER},
             },
             "rounds": [],
@@ -71,7 +71,7 @@ class Server:
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
         self._model = KerasClassifier(
-            model=utils.build_model(number_of_features=2),
+            model=utils.build_model(number_of_features=120),
             epochs=1,
             batch_size=32,
             verbose=1,
@@ -145,7 +145,7 @@ class Server:
             fraction_fit=1,
         )
         fl.server.start_server(
-            server_address="0.0.0.0:8080",
+            server_address="127.0.0.1:8080",
             strategy=strategy,
             config=ServerConfig(num_rounds=self._number_of_rounds),
         )

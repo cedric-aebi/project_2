@@ -6,7 +6,7 @@ import pandas as pd
 import flwr as fl
 from flwr.common import log, Parameters
 from flwr.server import ServerConfig
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.over_sampling import RandomOverSampler
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from sklearn.preprocessing import StandardScaler
@@ -48,7 +48,7 @@ class Server:
         scaler = StandardScaler()
         self._x_train_all = scaler.fit_transform(X=self._x_train_all)
         self._x_test_all = scaler.transform(X=self._x_test_all)
-        resampler = RandomUnderSampler(random_state=42)
+        resampler = RandomOverSampler(random_state=42)
         self._x_train_all, self._y_train_all = resampler.fit_resample(X=self._x_train_all, y=self._y_train_all)
 
         self._collection: Collection = MongoClient().project_2_windows.federated
@@ -60,7 +60,7 @@ class Server:
             "subject_nr": self._subject_nr,
             "model": Model.XGBOOST,
             "pre-processing": {
-                "resampling": {"method": ResamplingMethod.UNDERSAMPLING},
+                "resampling": {"method": ResamplingMethod.OVERSAMPLING},
                 "scaling": {"method": ScalingMethod.STANDARDSCALER},
             },
             "params": self._params,

@@ -81,7 +81,9 @@ class Server:
         """Return an evaluation function for server-side evaluation."""
 
         # The `evaluate` function will be called after every round
-        def evaluate(server_round: int, parameters: NDArrays) -> tuple[float, dict[str, Scalar]] | None:
+        def evaluate(
+            server_round: int, parameters: NDArrays, config: dict[str, Scalar]
+        ) -> tuple[float, dict[str, Scalar]] | None:
             utils.set_model_params(model, parameters)
             loss = log_loss(self._y_test_all, model.predict_proba(self._x_test_all))
             print("Evaluate")
@@ -124,8 +126,8 @@ class Server:
 
     def start(self) -> None:
         strategy = fl.server.strategy.FedAvg(
-            min_available_clients=2,
-            min_fit_clients=2,
+            min_available_clients=34,
+            min_fit_clients=34,
             evaluate_fn=self.get_eval_fn(self._model),
             on_fit_config_fn=self.fit_round,
             on_evaluate_config_fn=self.fit_round,

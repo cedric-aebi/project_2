@@ -54,7 +54,7 @@ class Server:
         self._collection: Collection = MongoClient().project_2_windows.federated
 
         # Define best performing model params from centralized run
-        self._params = {"max_depth": 10, "objective": "binary:logistic"}
+        self._params = {"max_depth": 8, "objective": "binary:logistic"}
 
         self._mongo_dict = {
             "subject_nr": self._subject_nr,

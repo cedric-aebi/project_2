@@ -63,7 +63,7 @@ class StressClient(fl.client.Client):
         self._collection: Collection = MongoClient().project_2_windows.federated
 
         # Define best performing model params from centralized run
-        self._params = {"max_depth": 10, "objective": "binary:logistic"}
+        self._params = {"max_depth": 8, "objective": "binary:logistic"}
         self._num_local_round = 1
 
         self._mongo_dict = {

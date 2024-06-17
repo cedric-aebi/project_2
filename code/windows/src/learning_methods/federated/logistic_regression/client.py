@@ -3,6 +3,7 @@ from pathlib import Path
 
 import flwr as fl
 from imblearn.combine import SMOTEENN
+from imblearn.over_sampling import RandomOverSampler
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from sklearn.linear_model import LogisticRegression
@@ -45,12 +46,12 @@ class StressClient(fl.client.NumPyClient):
         self._base_path = base_path
 
         self._collection: Collection = MongoClient().project_2_windows.federated
-        params = {"C": 0.001, "solver": "saga", "penalty": "l1"}
+        params = {"C": 1000, "solver": "liblinear", "penalty": "l1"}
         self._mongo_dict = {
             "subject_nr": subject_nr,
             "model": Model.LOGISTIC_REGRESSION,
             "pre-processing": {
-                "resampling": {"method": ResamplingMethod.SMOTEENN},
+                "resampling": {"method": ResamplingMethod.OVERSAMPLING},
                 "scaling": {"method": ScalingMethod.STANDARDSCALER},
             },
             "params": params,
@@ -66,7 +67,7 @@ class StressClient(fl.client.NumPyClient):
         scaler = StandardScaler()
         self._x_train = scaler.fit_transform(X=self._x_train)
         self._x_test = scaler.transform(X=self._x_test)
-        resampler = SMOTEENN(random_state=42)
+        resampler = RandomOverSampler(random_state=42)
         self._x_train, self._y_train = resampler.fit_resample(X=self._x_train, y=self._y_train)
 
         # Define best performing model from centralized run

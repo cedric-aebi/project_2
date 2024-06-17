@@ -5,6 +5,7 @@ import flwr as fl
 from flwr.common import NDArrays, Scalar
 from flwr.server import ServerConfig
 from imblearn.combine import SMOTEENN
+from imblearn.over_sampling import RandomOverSampler
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from sklearn.linear_model import LogisticRegression
@@ -43,16 +44,16 @@ class Server:
         scaler = StandardScaler()
         self._x_train_all = scaler.fit_transform(X=self._x_train_all)
         self._x_test_all = scaler.transform(X=self._x_test_all)
-        resampler = SMOTEENN(random_state=42)
+        resampler = RandomOverSampler(random_state=42)
         self._x_train_all, self._y_train_all = resampler.fit_resample(X=self._x_train_all, y=self._y_train_all)
 
         self._collection: Collection = MongoClient().project_2_windows.federated
-        params = {"C": 0.001, "solver": "saga", "penalty": "l1"}
+        params = {"C": 1000, "solver": "liblinear", "penalty": "l1"}
         self._mongo_dict = {
             "subject_nr": self._subject_nr,
             "model": Model.LOGISTIC_REGRESSION,
             "pre-processing": {
-                "resampling": {"method": ResamplingMethod.SMOTEENN},
+                "resampling": {"method": ResamplingMethod.OVERSAMPLING},
                 "scaling": {"method": ScalingMethod.STANDARDSCALER},
             },
             "params": params,
@@ -123,8 +124,8 @@ class Server:
 
     def start(self) -> None:
         strategy = fl.server.strategy.FedAvg(
-            min_available_clients=34,
-            min_fit_clients=34,
+            min_available_clients=2,
+            min_fit_clients=2,
             evaluate_fn=self.get_eval_fn(self._model),
             on_fit_config_fn=self.fit_round,
             on_evaluate_config_fn=self.fit_round,

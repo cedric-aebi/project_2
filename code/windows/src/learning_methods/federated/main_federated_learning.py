@@ -10,7 +10,7 @@ from learning_methods.federated.dnn.client import Client as DNNClient
 from learning_methods.federated.dnn.server import Server as DNNServer
 
 if __name__ == "__main__":
-    MODEL = Model.XGBOOST
+    MODEL = Model.LOGISTIC_REGRESSION
     NUMBER_OF_ROUNDS = 30
 
     match MODEL:

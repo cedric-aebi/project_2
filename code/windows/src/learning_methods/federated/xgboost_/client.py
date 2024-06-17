@@ -14,7 +14,7 @@ from flwr.common import (
     Status,
 )
 from flwr.common.logger import log
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.over_sampling import RandomOverSampler
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from sklearn.preprocessing import StandardScaler
@@ -70,7 +70,7 @@ class StressClient(fl.client.Client):
             "subject_nr": subject_nr,
             "model": Model.XGBOOST,
             "pre-processing": {
-                "resampling": {"method": ResamplingMethod.UNDERSAMPLING},
+                "resampling": {"method": ResamplingMethod.OVERSAMPLING},
                 "scaling": {"method": ScalingMethod.STANDARDSCALER},
             },
             "params": self._params,
@@ -86,7 +86,7 @@ class StressClient(fl.client.Client):
         scaler = StandardScaler()
         self._x_train = scaler.fit_transform(X=self._x_train)
         self._x_test = scaler.transform(X=self._x_test)
-        resampler = RandomUnderSampler(random_state=42)
+        resampler = RandomOverSampler(random_state=42)
         self._x_train, self._y_train = resampler.fit_resample(X=self._x_train, y=self._y_train)
 
         # Reformat data to DMatrix for xgboost

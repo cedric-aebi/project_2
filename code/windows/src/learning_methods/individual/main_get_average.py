@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 
 if __name__ == "__main__":
-    collection: Collection = MongoClient().project_2_no_windows.individual
+    collection: Collection = MongoClient().project_2_windows.individual
 
     documents = collection.find({"model": "Logistic Regression"})
 

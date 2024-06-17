@@ -4,7 +4,7 @@ from pathlib import Path
 import flwr as fl
 import tensorflow as tf
 import keras
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.combine import SMOTEENN
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from scikeras.wrappers import KerasClassifier
@@ -28,7 +28,7 @@ class Client:
         # Start Flower client
         print("Starting client...")
         fl.client.start_client(
-            server_address="0.0.0.0:8080",
+            server_address="127.0.0.1:8080",
             client=StressClient(
                 subject_nr=self._subject_nr, number_of_rounds=self._number_of_rounds, base_path=self._base_path
             ).to_client(),
@@ -42,13 +42,13 @@ class StressClient(fl.client.NumPyClient):
         keras.utils.set_random_seed(42)
 
         dataset_service = DatasetService()
-        self._export_service = ExportService(database="project_2_no_windows", collection="federated")
+        self._export_service = ExportService(database="project_2_windows", collection="federated")
 
         self._subject_nr = subject_nr
         self._number_of_rounds = number_of_rounds
         self._base_path = base_path
 
-        self._collection: Collection = MongoClient().project_2_no_windows.federated
+        self._collection: Collection = MongoClient().project_2_windows.federated
 
         unique_run_id = str(uuid.uuid4())
         log_dir = utils.get_log_dir(unique_run_id=unique_run_id)
@@ -56,7 +56,7 @@ class StressClient(fl.client.NumPyClient):
             "subject_nr": self._subject_nr,
             "model": Model.DNN,
             "pre-processing": {
-                "resampling": {"method": ResamplingMethod.UNDERSAMPLING},
+                "resampling": {"method": ResamplingMethod.SMOTEENN},
                 "scaling": {"method": ScalingMethod.STANDARDSCALER},
             },
             "rounds": [],
@@ -73,14 +73,14 @@ class StressClient(fl.client.NumPyClient):
         scaler = StandardScaler()
         self._x_train = scaler.fit_transform(X=self._x_train)
         self._x_test = scaler.transform(X=self._x_test)
-        resampler = RandomUnderSampler(random_state=42)
+        resampler = SMOTEENN(random_state=42)
         self._x_train, self._y_train = resampler.fit_resample(X=self._x_train, y=self._y_train)
 
         early_stopping_callback = keras.callbacks.EarlyStopping(patience=5)
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
         self._model = KerasClassifier(
-            model=utils.build_model(number_of_features=2),
+            model=utils.build_model(number_of_features=120),
             epochs=1,
             batch_size=32,
             verbose=1,
@@ -88,6 +88,7 @@ class StressClient(fl.client.NumPyClient):
             random_state=42,
             shuffle=True,
             callbacks=[early_stopping_callback, tensorboard_callback],
+            optimizer="adam",
         )
         # Initialize model without fitting it
         self._model.initialize(self._x_train, self._y_train)

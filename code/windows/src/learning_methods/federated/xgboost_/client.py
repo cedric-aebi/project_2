@@ -54,13 +54,13 @@ class StressClient(fl.client.Client):
         self.config = None
 
         dataset_service = DatasetService()
-        self._export_service = ExportService(database="project_2_no_windows", collection="federated")
+        self._export_service = ExportService(database="project_2_windows", collection="federated")
 
         self._subject_nr = subject_nr
         self._number_of_rounds = number_of_rounds
         self._base_path = base_path
 
-        self._collection: Collection = MongoClient().project_2_no_windows.federated
+        self._collection: Collection = MongoClient().project_2_windows.federated
 
         # Define best performing model params from centralized run
         self._params = {"max_depth": 10, "objective": "binary:logistic"}

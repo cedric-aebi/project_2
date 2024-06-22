@@ -4,7 +4,6 @@ import pandas as pd
 import flwr as fl
 from flwr.common import NDArrays, Scalar
 from flwr.server import ServerConfig
-from imblearn.combine import SMOTEENN
 from imblearn.over_sampling import RandomOverSampler
 from pymongo import MongoClient
 from pymongo.collection import Collection

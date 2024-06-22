@@ -39,7 +39,7 @@ class DNNModel(AbstractModel):
         )
         super().__init__(model=model, scaler=scaler, resampler=resampler)
 
-    def fit(self, x_train: np.ndarray, y_train: np.ndarray, grid_search: bool, run_info: dict) -> None:
+    def fit(self, x_train: np.ndarray, y_train: np.ndarray) -> None:
         self._pipeline.fit(x_train, y_train)
 
     def predict(self, x: np.ndarray) -> np.ndarray:
@@ -49,29 +49,12 @@ class DNNModel(AbstractModel):
     def _build_model(number_of_features: int) -> keras.Sequential:
         # Define the model
         # For the non-window approach use a simpler model
-        if number_of_features == 2:
-            model = keras.Sequential()
-            model.add(layers.Dense(16, input_dim=number_of_features, activation="relu"))
-            model.add(layers.Dense(8, activation="relu"))
-            model.add(layers.Dense(4, activation="relu"))
-            # Output layer with 1 neuron, sigmoid activation for binary classification
-            model.add(layers.Dense(1, activation="sigmoid"))
-        else:
-            # TODO Test different architectures
-            model = keras.Sequential()
-            model.add(layers.Dense(512, input_dim=number_of_features, activation="relu"))
-            model.add(layers.Dropout(0.2, seed=42))
-            model.add(layers.Dense(256, activation="relu"))
-            model.add(layers.Dropout(0.2, seed=42))
-            model.add(layers.Dense(128, activation="relu"))
-            model.add(layers.Dropout(0.2, seed=42))
-            model.add(layers.Dense(64, activation="relu"))
-            model.add(layers.Dropout(0.2, seed=42))
-            model.add(layers.Dense(54, activation="relu"))
-            model.add(layers.Dropout(0.2, seed=42))
-            model.add(layers.Dense(50, activation="relu"))
-            # Output layer with 1 neuron, sigmoid activation for binary classification
-            model.add(layers.Dense(1, activation="sigmoid"))
+        model = keras.Sequential()
+        model.add(layers.Dense(16, input_dim=number_of_features, activation="relu"))
+        model.add(layers.Dense(8, activation="relu"))
+        model.add(layers.Dense(4, activation="relu"))
+        # Output layer with 1 neuron, sigmoid activation for binary classification
+        model.add(layers.Dense(1, activation="sigmoid"))
 
         return model
 

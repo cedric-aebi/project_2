@@ -25,7 +25,7 @@ class AbstractModel(ABC):
         return self._hyperparameter_grid
 
     @abstractmethod
-    def fit(self, x_train: np.ndarray, y_train: np.ndarray, grid_search: bool, run_info: dict) -> None:
+    def fit(self, x_train: np.ndarray, y_train: np.ndarray, run_info: dict) -> None:
         pass
 
     @abstractmethod

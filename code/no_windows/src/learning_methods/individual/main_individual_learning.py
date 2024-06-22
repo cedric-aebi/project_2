@@ -67,7 +67,7 @@ if __name__ == "__main__":
                 case _:
                     raise Exception(f"Could not initialize model {model_enum.value} for config")
 
-            model.fit(x_train=x_train, y_train=y_train, grid_search=True, run_info=run_info["subjects"][idx])
+            model.fit(x_train=x_train, y_train=y_train, run_info=run_info["subjects"][idx])
 
             pred_train = model.predict(x=x_train)
             scores_train, _ = model.evaluate(pred=pred_train, y_true=y_train)

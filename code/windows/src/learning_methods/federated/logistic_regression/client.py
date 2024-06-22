@@ -2,7 +2,6 @@ import warnings
 from pathlib import Path
 
 import flwr as fl
-from imblearn.combine import SMOTEENN
 from imblearn.over_sampling import RandomOverSampler
 from pymongo import MongoClient
 from pymongo.collection import Collection

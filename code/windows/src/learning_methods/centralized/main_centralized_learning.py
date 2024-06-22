@@ -71,7 +71,7 @@ if __name__ == "__main__":
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")
 
-        model.fit(x_train=x_train_all, y_train=y_train_all, grid_search=True, run_info=run_info)
+        model.fit(x_train=x_train_all, y_train=y_train_all, run_info=run_info)
 
         # Get training and testing results on centralized dataset
         pred_train_all = model.predict(x=x_train_all)

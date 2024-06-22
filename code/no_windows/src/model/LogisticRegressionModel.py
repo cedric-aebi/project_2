@@ -21,33 +21,13 @@ class LogisticRegressionModel(AbstractModel):
             resampler=resampler,
         )
 
-    def fit(self, x_train: np.ndarray, y_train: np.ndarray, grid_search: bool, run_info: dict) -> None:
-        if grid_search:
-            grid_search_cv = GridSearchCV(
-                estimator=self._pipeline, param_grid=self._hyperparameter_grid, n_jobs=-1, cv=self._kfold
-            )
-            grid_result = grid_search_cv.fit(x_train, y_train.ravel())
-            self._best_estimator = grid_result.best_estimator_
-            run_info["best_params"] = grid_result.best_params_
-        else:
-            pass
-            # TODO: Handle non-grid searches
-            # self._model = self._model.fit(train_x, train_y)
-            # pred = self._model.predict(train_x)
-            # scores = self.get_scores(pred=pred, y=train_y)
-            # tp, tn, fp, fn = self.get_classification_results(cm=scores[4])
-            # run_info["training"] = {
-            #     "fitted_model": {
-            #         "params": self._model.get_params(),
-            #         "scores": {
-            #             "accuracy": scores[0],
-            #             "recall": scores[1],
-            #             "precision": scores[2],
-            #             "f1": scores[3],
-            #             "confusion_matrix": {"tp": tp, "tn": tn, "fp": fp, "fn": fn},
-            #         },
-            #     },
-            # }
+    def fit(self, x_train: np.ndarray, y_train: np.ndarray, run_info: dict) -> None:
+        grid_search_cv = GridSearchCV(
+            estimator=self._pipeline, param_grid=self._hyperparameter_grid, n_jobs=-1, cv=self._kfold
+        )
+        grid_result = grid_search_cv.fit(x_train, y_train.ravel())
+        self._best_estimator = grid_result.best_estimator_
+        run_info["best_params"] = grid_result.best_params_
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         return self._best_estimator.predict(x)

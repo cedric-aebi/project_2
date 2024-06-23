@@ -141,6 +141,124 @@ class ExportService:
                 }
                 self.__collection.insert_one(document_to_insert)
 
+    def export_results_to_csv(self, collection: str, model: Model, base_path: Path) -> None:
+        match collection:
+            case "centralized":
+                best = self.__collection.find({"model": model}).sort("average_scoring.mean_f1", -1)[0]
+
+                rows = []
+
+                # Individual scores
+                idx = 2
+                for subject in best["individual_scoring"]:
+                    rows.append(
+                        [
+                            idx,
+                            round(subject["testing_set"]["accuracy"], 4),
+                            round(subject["testing_set"]["recall"], 4),
+                            round(subject["testing_set"]["precision"], 4),
+                            round(subject["testing_set"]["f1"], 4),
+                        ]
+                    )
+                    idx += 1
+
+                # Average scores
+                rows.append(
+                    [
+                        "Average",
+                        round(best["average_scoring"]["mean_accuracy"], 4),
+                        round(best["average_scoring"]["mean_recall"], 4),
+                        round(best["average_scoring"]["mean_precision"], 4),
+                        round(best["average_scoring"]["mean_f1"], 4),
+                    ]
+                )
+
+                # Centralized scores
+                rows.append(
+                    [
+                        "Centralized",
+                        round(best["centralized_scoring"]["testing_set"]["accuracy"], 4),
+                        round(best["centralized_scoring"]["testing_set"]["recall"], 4),
+                        round(best["centralized_scoring"]["testing_set"]["precision"], 4),
+                        round(best["centralized_scoring"]["testing_set"]["f1"], 4),
+                    ]
+                )
+
+                df = pd.DataFrame(data=rows, columns=["Subject", "Accuracy", "Recall", "Precision", "F1"])
+                df.to_csv(base_path / collection / f"{model}_{best['_id']}.csv", index=False)
+            case "individual":
+                best = self.__collection.find({"model": model}).sort("average_scoring.mean_f1", -1)[0]
+
+                rows = []
+
+                # Individual scores
+                for subject in best["subjects"]:
+                    rows.append(
+                        [
+                            subject["subject"],
+                            round(subject["scores"]["testing_set"]["accuracy"], 4),
+                            round(subject["scores"]["testing_set"]["recall"], 4),
+                            round(subject["scores"]["testing_set"]["precision"], 4),
+                            round(subject["scores"]["testing_set"]["f1"], 4),
+                        ]
+                    )
+
+                # Average scores
+                rows.append(
+                    [
+                        "Average",
+                        round(best["average_scoring"]["mean_accuracy"], 4),
+                        round(best["average_scoring"]["mean_recall"], 4),
+                        round(best["average_scoring"]["mean_precision"], 4),
+                        round(best["average_scoring"]["mean_f1"], 4),
+                    ]
+                )
+
+                df = pd.DataFrame(data=rows, columns=["Subject", "Accuracy", "Recall", "Precision", "F1"])
+                df.to_csv(base_path / collection / f"{model}_{best['_id']}.csv", index=False)
+            case "federated":
+                rows = []
+
+                # Individual scores
+                for subject in range(2, 36):
+                    document = self.__collection.find_one({"model": model, "subject_nr": subject})
+                    rows.append(
+                        [
+                            document["subject_nr"],
+                            round(document["rounds"][-1]["testing_set"]["accuracy"], 4),
+                            round(document["rounds"][-1]["testing_set"]["recall"], 4),
+                            round(document["rounds"][-1]["testing_set"]["precision"], 4),
+                            round(document["rounds"][-1]["testing_set"]["f1"], 4),
+                        ]
+                    )
+
+                # Average scores
+                average = self.__collection.find_one({"model": model, "subject_nr": "average"})
+                rows.append(
+                    [
+                        "Average",
+                        round(average["average_scoring"]["mean_accuracy"], 4),
+                        round(average["average_scoring"]["mean_recall"], 4),
+                        round(average["average_scoring"]["mean_precision"], 4),
+                        round(average["average_scoring"]["mean_f1"], 4),
+                    ]
+                )
+
+                # Centralized Scoring
+                server = self.__collection.find_one({"model": model, "subject_nr": "server"})
+                rows.append(
+                    [
+                        "Centralized",
+                        round(server["rounds"][-1]["testing_set"]["accuracy"], 4),
+                        round(server["rounds"][-1]["testing_set"]["recall"], 4),
+                        round(server["rounds"][-1]["testing_set"]["precision"], 4),
+                        round(server["rounds"][-1]["testing_set"]["f1"], 4),
+                    ]
+                )
+
+                df = pd.DataFrame(data=rows, columns=["Subject", "Accuracy", "Recall", "Precision", "F1"])
+                df.to_csv(base_path / collection / f"{model}.csv", index=False)
+
     @staticmethod
     def _dict_hash(dictionary: dict[str, Any]) -> str:
         """MD5 hash of a dictionary."""

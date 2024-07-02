@@ -259,6 +259,88 @@ class ExportService:
                 df = pd.DataFrame(data=rows, columns=["Subject", "Accuracy", "Recall", "Precision", "F1"])
                 df.to_csv(base_path / collection / f"{model}.csv", index=False)
 
+    def export_pre_processing_comparison(self, base_path: Path) -> None:
+        documents = []
+
+        # Logistic Regression Models
+        document = self.__collection.find_one(
+            {
+                "model": Model.LOGISTIC_REGRESSION,
+                "pre-processing.resampling.method": None,
+                "pre-processing.scaling.method": None,
+            }
+        )
+        documents.append(document)
+        document = self.__collection.find({"model": Model.LOGISTIC_REGRESSION}).sort(
+            "centralized_scoring.testing_set.f1", -1
+        )[0]
+        documents.append(document)
+        document = self.__collection.find(
+            {
+                "model": Model.LOGISTIC_REGRESSION,
+                "pre-processing.resampling.method": {"$ne": document["pre-processing"]["resampling"]["method"]},
+            }
+        ).sort("centralized_scoring.testing_set.f1", -1)[0]
+        documents.append(document)
+
+        # XGBoost Models
+        document = self.__collection.find_one(
+            {"model": Model.XGBOOST, "pre-processing.resampling.method": None, "pre-processing.scaling.method": None}
+        )
+        documents.append(document)
+        document = self.__collection.find({"model": Model.XGBOOST}).sort("centralized_scoring.testing_set.f1", -1)[0]
+        documents.append(document)
+        document = self.__collection.find(
+            {
+                "model": Model.XGBOOST,
+                "pre-processing.resampling.method": {"$ne": document["pre-processing"]["resampling"]["method"]},
+            }
+        ).sort("centralized_scoring.testing_set.f1", -1)[0]
+        documents.append(document)
+
+        # DNN Models
+        document = self.__collection.find_one(
+            {"model": Model.DNN, "pre-processing.resampling.method": None, "pre-processing.scaling.method": None}
+        )
+        documents.append(document)
+        document = self.__collection.find({"model": Model.DNN}).sort("centralized_scoring.testing_set.f1", -1)[0]
+        documents.append(document)
+        document = self.__collection.find(
+            {
+                "model": Model.DNN,
+                "pre-processing.resampling.method": {"$ne": document["pre-processing"]["resampling"]["method"]},
+            }
+        ).sort("centralized_scoring.testing_set.f1", -1)[0]
+        documents.append(document)
+
+        rows = []
+        for document in documents:
+            resampling = (
+                document["pre-processing"]["resampling"]["method"]
+                if document["pre-processing"]["resampling"]["method"] is not None
+                else "None"
+            )
+            scaling = (
+                document["pre-processing"]["scaling"]["method"]
+                if document["pre-processing"]["scaling"]["method"] is not None
+                else "None"
+            )
+            rows.append(
+                {
+                    "Model": document["model"],
+                    "Resampling/Normalization": f"{resampling}/{scaling}",
+                    "Accuracy": round(document["centralized_scoring"]["testing_set"]["accuracy"], 4),
+                    "Recall": round(document["centralized_scoring"]["testing_set"]["recall"], 4),
+                    "Precision": round(document["centralized_scoring"]["testing_set"]["precision"], 4),
+                    "F1": round(document["centralized_scoring"]["testing_set"]["f1"], 4),
+                }
+            )
+
+        df = pd.DataFrame(
+            data=rows, columns=["Model", "Resampling/Normalization", "Accuracy", "Recall", "Precision", "F1"]
+        )
+        df.to_csv(base_path / "comparison.csv", index=False)
+
     @staticmethod
     def _dict_hash(dictionary: dict[str, Any]) -> str:
         """MD5 hash of a dictionary."""

@@ -1,0 +1,10 @@
+Model,Resampling/Normalization,Accuracy,Recall,Precision,F1
+Logistic Regression,None/None,0.6736,0.5641,0.0119,0.0234
+Logistic Regression,SMOTEENN/StandardScaler,0.5597,0.3821,0.5597,0.4542
+Logistic Regression,SMOTE/StandardScaler,0.5787,0.3849,0.4803,0.4273
+XGBoost,None/None,0.7366,0.6404,0.4449,0.525
+XGBoost,UNDERSAMPLING/StandardScaler,0.6896,0.5189,0.7073,0.5986
+XGBoost,SMOTEENN/StandardScaler,0.6921,0.5223,0.6918,0.5953
+DNN,None/None,0.6727,0.0,0.0,0.0
+DNN,UNDERSAMPLING/StandardScaler,0.6479,0.3235,0.0696,0.1146
+DNN,TOMELINKS/StandardScaler,0.6548,0.3387,0.0576,0.0984

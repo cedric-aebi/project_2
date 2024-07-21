@@ -58,7 +58,7 @@ if __name__ == "__main__":
             "individual_scoring": [],
         }
 
-        scaler = dataset_service.get_scaler(method=resampling_method)
+        scaler = dataset_service.get_scaler(method=scaling_method)
         resampler = dataset_service.get_resampler(method=resampling_method)
 
         match model_enum:

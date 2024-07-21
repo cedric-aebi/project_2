@@ -87,7 +87,7 @@ if __name__ == "__main__":
             deriv_RESPR, second_deriv_RESPR = feature_service.get_derivatives(data=RESPR[i, :])
 
             _, HR_cD_3, HR_cD_2, HR_cD_1 = pywt.wavedec(HR[i, :], "Haar", level=3)  # 3 = 1Hz, 2 = 2Hz, 1=4Hz
-            _, RESPR_cD_3, RESPR_cD_2, RESPR_cD_1 = pywt.wavedec(HR[i, :], "Haar", level=3)
+            _, RESPR_cD_3, RESPR_cD_2, RESPR_cD_1 = pywt.wavedec(RESPR[i, :], "Haar", level=3)
 
             # ----- HR features -----
             # HR statistical features:

@@ -7,7 +7,6 @@ from imblearn.base import BaseSampler
 from imblearn.pipeline import Pipeline
 from keras import layers
 import tensorflow as tf
-from keras.src.optimizers import SGD
 from scikeras.wrappers import KerasClassifier
 from sklearn.base import BaseEstimator
 
@@ -34,12 +33,12 @@ class DNNModel(AbstractModel):
             shuffle=True,
             callbacks=[early_stopping_callback, tensorboard_callback],
             loss="binary_crossentropy",
-            optimizer=SGD(learning_rate=0.001),
+            optimizer="adam",
             metrics=["accuracy"],
         )
         super().__init__(model=model, scaler=scaler, resampler=resampler)
 
-    def fit(self, x_train: np.ndarray, y_train: np.ndarray) -> None:
+    def fit(self, x_train: np.ndarray, y_train: np.ndarray, run_info: dict) -> None:
         self._pipeline.fit(x_train, y_train)
 
     def predict(self, x: np.ndarray) -> np.ndarray:

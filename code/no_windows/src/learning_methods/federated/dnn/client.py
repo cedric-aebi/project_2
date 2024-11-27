@@ -4,15 +4,13 @@ from pathlib import Path
 import flwr as fl
 import tensorflow as tf
 import keras
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.combine import SMOTEENN
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from scikeras.wrappers import KerasClassifier
-from sklearn.preprocessing import StandardScaler
 
 from enums.Model import Model
 from enums.ResamplingMethod import ResamplingMethod
-from enums.ScalingMethod import ScalingMethod
 from learning_methods.federated.dnn import utils
 from service.datasetservice.DatasetService import DatasetService
 from service.exportservice.ExportService import ExportService
@@ -56,8 +54,8 @@ class StressClient(fl.client.NumPyClient):
             "subject_nr": self._subject_nr,
             "model": Model.DNN,
             "pre-processing": {
-                "resampling": {"method": ResamplingMethod.UNDERSAMPLING},
-                "scaling": {"method": ScalingMethod.STANDARDSCALER},
+                "resampling": {"method": ResamplingMethod.SMOTEENN},
+                "scaling": {"method": None},
             },
             "rounds": [],
             "log_dir": str(log_dir),
@@ -70,10 +68,7 @@ class StressClient(fl.client.NumPyClient):
         self._y_test = dataset_service.load_testing_labels(which=subject_nr).to_numpy()
 
         # Replicate best performing pre-processing from centralized run
-        scaler = StandardScaler()
-        self._x_train = scaler.fit_transform(X=self._x_train)
-        self._x_test = scaler.transform(X=self._x_test)
-        resampler = RandomUnderSampler(random_state=42)
+        resampler = SMOTEENN(random_state=42)
         self._x_train, self._y_train = resampler.fit_resample(X=self._x_train, y=self._y_train)
 
         early_stopping_callback = keras.callbacks.EarlyStopping(patience=5)
@@ -103,6 +98,11 @@ class StressClient(fl.client.NumPyClient):
 
     def evaluate(self, parameters, config):
         self._model.model_.set_weights(parameters)
+
+        # If last round, fine-tune with a last fit and evaluate
+        if config["rnd"] == self._number_of_rounds:
+            self._model.fit(self._x_train, self._y_train)
+
         loss, accuracy = self._model.model_.evaluate(self._x_test, self._y_test)
 
         pred_train = self._model.predict(self._x_train)

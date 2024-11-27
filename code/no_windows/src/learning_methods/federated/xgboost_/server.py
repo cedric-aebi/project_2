@@ -6,10 +6,10 @@ import pandas as pd
 import flwr as fl
 from flwr.common import log, Parameters
 from flwr.server import ServerConfig
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.combine import SMOTEENN
 from pymongo import MongoClient
 from pymongo.collection import Collection
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from xgboost import Booster
 
 from enums.Model import Model
@@ -45,10 +45,10 @@ class Server:
         self._y_test_all = pd.concat(self._y_test_all).to_numpy()
 
         # Replicate best performing pre-processing from centralized run
-        scaler = StandardScaler()
+        scaler = MinMaxScaler()
         self._x_train_all = scaler.fit_transform(X=self._x_train_all)
         self._x_test_all = scaler.transform(X=self._x_test_all)
-        resampler = RandomUnderSampler(random_state=42)
+        resampler = SMOTEENN(random_state=42)
         self._x_train_all, self._y_train_all = resampler.fit_resample(X=self._x_train_all, y=self._y_train_all)
 
         self._collection: Collection = MongoClient().project_2_no_windows.federated
@@ -60,8 +60,8 @@ class Server:
             "subject_nr": self._subject_nr,
             "model": Model.XGBOOST,
             "pre-processing": {
-                "resampling": {"method": ResamplingMethod.UNDERSAMPLING},
-                "scaling": {"method": ScalingMethod.STANDARDSCALER},
+                "resampling": {"method": ResamplingMethod.SMOTEENN},
+                "scaling": {"method": ScalingMethod.MINMAXSCALER},
             },
             "params": self._params,
             "rounds": [],

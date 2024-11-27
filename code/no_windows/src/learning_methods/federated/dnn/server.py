@@ -7,15 +7,13 @@ import keras
 import flwr as fl
 from flwr.common import NDArrays, Scalar
 from flwr.server import ServerConfig
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.combine import SMOTEENN
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from scikeras.wrappers import KerasClassifier
-from sklearn.preprocessing import StandardScaler
 
 from enums.Model import Model
 from enums.ResamplingMethod import ResamplingMethod
-from enums.ScalingMethod import ScalingMethod
 from learning_methods.federated.dnn import utils
 from service.datasetservice.DatasetService import DatasetService
 from service.exportservice.ExportService import ExportService
@@ -45,10 +43,7 @@ class Server:
         self._y_test_all = pd.concat(self._y_test_all).to_numpy()
 
         # Replicate best performing pre-processing from centralized run
-        scaler = StandardScaler()
-        self._x_train_all = scaler.fit_transform(X=self._x_train_all)
-        self._x_test_all = scaler.transform(X=self._x_test_all)
-        resampler = RandomUnderSampler(random_state=42)
+        resampler = SMOTEENN(random_state=42)
         self._x_train_all, self._y_train_all = resampler.fit_resample(X=self._x_train_all, y=self._y_train_all)
 
         self._collection: Collection = MongoClient().project_2_no_windows.federated
@@ -59,8 +54,8 @@ class Server:
             "subject_nr": self._subject_nr,
             "model": Model.DNN,
             "pre-processing": {
-                "resampling": {"method": ResamplingMethod.UNDERSAMPLING},
-                "scaling": {"method": ScalingMethod.STANDARDSCALER},
+                "resampling": {"method": ResamplingMethod.SMOTEENN},
+                "scaling": {"method": None},
             },
             "rounds": [],
             "log_dir": str(log_dir),

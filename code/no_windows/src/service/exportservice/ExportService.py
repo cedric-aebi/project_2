@@ -9,6 +9,7 @@ import pandas as pd
 from pymongo import MongoClient
 from pymongo.collection import Collection
 
+from enums.Model import Model
 from service.visualizationservice.VisualizationService import VisualizationService
 
 

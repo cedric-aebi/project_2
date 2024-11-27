@@ -9,11 +9,9 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss
-from sklearn.preprocessing import StandardScaler
 
 from enums.Model import Model
 from enums.ResamplingMethod import ResamplingMethod
-from enums.ScalingMethod import ScalingMethod
 from learning_methods.federated.logistic_regression import utils
 from service.datasetservice.DatasetService import DatasetService
 from service.exportservice.ExportService import ExportService
@@ -40,20 +38,17 @@ class Server:
         self._y_test_all = pd.concat(self._y_test_all).to_numpy()
 
         # Replicate best performing pre-processing from centralized run
-        scaler = StandardScaler()
-        self._x_train_all = scaler.fit_transform(X=self._x_train_all)
-        self._x_test_all = scaler.transform(X=self._x_test_all)
         resampler = SMOTEENN(random_state=42)
         self._x_train_all, self._y_train_all = resampler.fit_resample(X=self._x_train_all, y=self._y_train_all)
 
         self._collection: Collection = MongoClient().project_2_no_windows.federated
-        params = {"C": 0.001, "solver": "saga", "penalty": "l1"}
+        params = {"C": 0.0001, "solver": "lbfgs", "penalty": "l2"}
         self._mongo_dict = {
             "subject_nr": self._subject_nr,
             "model": Model.LOGISTIC_REGRESSION,
             "pre-processing": {
                 "resampling": {"method": ResamplingMethod.SMOTEENN},
-                "scaling": {"method": ScalingMethod.STANDARDSCALER},
+                "scaling": {"method": None},
             },
             "params": params,
             "rounds": [],
@@ -80,7 +75,9 @@ class Server:
         """Return an evaluation function for server-side evaluation."""
 
         # The `evaluate` function will be called after every round
-        def evaluate(server_round: int, parameters: NDArrays) -> tuple[float, dict[str, Scalar]] | None:
+        def evaluate(
+            server_round: int, parameters: NDArrays, config: dict[str, Scalar]
+        ) -> tuple[float, dict[str, Scalar]] | None:
             utils.set_model_params(model, parameters)
             loss = log_loss(self._y_test_all, model.predict_proba(self._x_test_all))
             print("Evaluate")

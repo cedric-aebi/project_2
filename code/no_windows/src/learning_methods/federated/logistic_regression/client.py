@@ -7,11 +7,9 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss
-from sklearn.preprocessing import StandardScaler
 
 from enums.Model import Model
 from enums.ResamplingMethod import ResamplingMethod
-from enums.ScalingMethod import ScalingMethod
 from learning_methods.federated.logistic_regression import utils
 from service.datasetservice.DatasetService import DatasetService
 from service.exportservice.ExportService import ExportService
@@ -45,13 +43,13 @@ class StressClient(fl.client.NumPyClient):
         self._base_path = base_path
 
         self._collection: Collection = MongoClient().project_2_no_windows.federated
-        params = {"C": 0.001, "solver": "saga", "penalty": "l1"}
+        params = {"C": 0.0001, "solver": "lbfgs", "penalty": "l2"}
         self._mongo_dict = {
             "subject_nr": subject_nr,
             "model": Model.LOGISTIC_REGRESSION,
             "pre-processing": {
                 "resampling": {"method": ResamplingMethod.SMOTEENN},
-                "scaling": {"method": ScalingMethod.STANDARDSCALER},
+                "scaling": {"method": None},
             },
             "params": params,
             "rounds": [],
@@ -63,9 +61,6 @@ class StressClient(fl.client.NumPyClient):
         self._y_test = dataset_service.load_testing_labels(which=subject_nr).to_numpy()
 
         # Replicate best performing pre-processing from centralized run
-        scaler = StandardScaler()
-        self._x_train = scaler.fit_transform(X=self._x_train)
-        self._x_test = scaler.transform(X=self._x_test)
         resampler = SMOTEENN(random_state=42)
         self._x_train, self._y_train = resampler.fit_resample(X=self._x_train, y=self._y_train)
 
@@ -95,8 +90,14 @@ class StressClient(fl.client.NumPyClient):
 
         return list(utils.get_model_parameters(self._model)), len(self._x_train), {}
 
-    def evaluate(self, parameters, config):  # type: ignore
+    def evaluate(self, parameters, config):
         utils.set_model_params(self._model, parameters)
+
+        # If last round, fine-tune with a last fit and evaluate
+        if config["rnd"] == self._number_of_rounds:
+            self._model.max_iter = 1000
+            self._model.fit(self._x_train, self._y_train)
+
         loss = log_loss(self._y_test, self._model.predict_proba(self._x_test))
         accuracy = self._model.score(self._x_test, self._y_test)
         print("Evaluate")

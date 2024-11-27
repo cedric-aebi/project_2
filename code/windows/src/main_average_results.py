@@ -1,7 +1,7 @@
 from service.exportservice.ExportService import ExportService
 
 DATABASE = "project_2_windows"
-COLLECTION = "federated"
+COLLECTION = "individual"
 
 if __name__ == "__main__":
     export_service = ExportService(database=DATABASE, collection=COLLECTION)

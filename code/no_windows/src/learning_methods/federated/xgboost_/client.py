@@ -14,10 +14,10 @@ from flwr.common import (
     Status,
 )
 from flwr.common.logger import log
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.combine import SMOTEENN
 from pymongo import MongoClient
 from pymongo.collection import Collection
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 import xgboost as xgb
 from xgboost import Booster
 
@@ -70,8 +70,8 @@ class StressClient(fl.client.Client):
             "subject_nr": subject_nr,
             "model": Model.XGBOOST,
             "pre-processing": {
-                "resampling": {"method": ResamplingMethod.UNDERSAMPLING},
-                "scaling": {"method": ScalingMethod.STANDARDSCALER},
+                "resampling": {"method": ResamplingMethod.SMOTEENN},
+                "scaling": {"method": ScalingMethod.MINMAXSCALER},
             },
             "params": self._params,
             "rounds": [],
@@ -83,10 +83,10 @@ class StressClient(fl.client.Client):
         self._y_test = dataset_service.load_testing_labels(which=subject_nr).to_numpy()
 
         # Replicate best performing pre-processing from centralized run
-        scaler = StandardScaler()
+        scaler = MinMaxScaler()
         self._x_train = scaler.fit_transform(X=self._x_train)
         self._x_test = scaler.transform(X=self._x_test)
-        resampler = RandomUnderSampler(random_state=42)
+        resampler = SMOTEENN(random_state=42)
         self._x_train, self._y_train = resampler.fit_resample(X=self._x_train, y=self._y_train)
 
         # Reformat data to DMatrix for xgboost
@@ -145,10 +145,14 @@ class StressClient(fl.client.Client):
         for i in range(self._num_local_round):
             self.bst.update(self._train_dmatrix, self.bst.num_boosted_rounds())
 
-        # Extract the last N=num_local_round trees for sever aggregation
+        # Extract the last N=num_local_round trees for server aggregation
         return self.bst[self.bst.num_boosted_rounds() - self._num_local_round : self.bst.num_boosted_rounds()]
 
     def evaluate(self, ins: EvaluateIns) -> EvaluateRes:
+        # If last round fine-tune
+        if ins.config["rnd"] == self._number_of_rounds:
+            for i in range(100):
+                self.bst.update(self._train_dmatrix, self.bst.num_boosted_rounds())
         eval_results = self.bst.eval_set(
             evals=[(self._test_dmatrix, "test")],
             iteration=self.bst.num_boosted_rounds() - 1,

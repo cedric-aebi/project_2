@@ -10,12 +10,12 @@ from model.AbstractModel import AbstractModel
 class LogisticRegressionModel(AbstractModel):
     def __init__(self, scaler: BaseEstimator, resampler: BaseSampler):
         hyperparameter_grid = {
-            "model__penalty": ["l2", "l1", "elasticnet", None],
+            "model__penalty": ["l2", "l1", None],
             "model__C": [0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000],
-            "model__solver": ["lbfgs", "liblinear", "newton-cg", "newton-cholesky", "sag", "saga"],
+            "model__solver": ["lbfgs", "liblinear", "sag"],
         }
         super().__init__(
-            model=LogisticRegression(random_state=42),
+            model=LogisticRegression(random_state=42, max_iter=1000),
             hyperparameter_grid=hyperparameter_grid,
             scaler=scaler,
             resampler=resampler,

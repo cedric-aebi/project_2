@@ -3,38 +3,20 @@ from pathlib import Path
 import keras
 import numpy as np
 from keras import layers
-from keras.src.optimizers import SGD
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
 
 
 def build_model(number_of_features: int) -> keras.Sequential:
     # Define the model
     # For the non-window approach use a simpler model
-    if number_of_features == 2:
-        model = keras.Sequential()
-        model.add(layers.Dense(16, input_dim=number_of_features, activation="relu"))
-        model.add(layers.Dense(8, activation="relu"))
-        model.add(layers.Dense(4, activation="relu"))
-        # Output layer with 1 neuron, sigmoid activation for binary classification
-        model.add(layers.Dense(1, activation="sigmoid"))
-    else:
-        # TODO Test different architectures
-        model = keras.Sequential()
-        model.add(layers.Dense(512, input_dim=number_of_features, activation="relu"))
-        model.add(layers.Dropout(0.2, seed=42))
-        model.add(layers.Dense(256, activation="relu"))
-        model.add(layers.Dropout(0.2, seed=42))
-        model.add(layers.Dense(128, activation="relu"))
-        model.add(layers.Dropout(0.2, seed=42))
-        model.add(layers.Dense(64, activation="relu"))
-        model.add(layers.Dropout(0.2, seed=42))
-        model.add(layers.Dense(54, activation="relu"))
-        model.add(layers.Dropout(0.2, seed=42))
-        model.add(layers.Dense(50, activation="relu"))
-        # Output layer with 1 neuron, sigmoid activation for binary classification
-        model.add(layers.Dense(1, activation="sigmoid"))
+    model = keras.Sequential()
+    model.add(layers.Dense(16, input_dim=number_of_features, activation="relu"))
+    model.add(layers.Dense(8, activation="relu"))
+    model.add(layers.Dense(4, activation="relu"))
+    # Output layer with 1 neuron, sigmoid activation for binary classification
+    model.add(layers.Dense(1, activation="sigmoid"))
 
-    model.compile(loss="binary_crossentropy", optimizer=SGD(learning_rate=0.001), metrics=["accuracy"])
+    model.compile(loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"])
     return model
 
 

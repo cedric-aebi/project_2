@@ -4,14 +4,14 @@ from pathlib import Path
 import pandas as pd
 from imblearn.base import BaseSampler
 from imblearn.combine import SMOTEENN
-from imblearn.over_sampling import SMOTE, RandomOverSampler
-from imblearn.under_sampling import RandomUnderSampler, TomekLinks
+from imblearn.over_sampling import RandomOverSampler, SMOTE
+from imblearn.under_sampling import TomekLinks, RandomUnderSampler
 from sklearn.base import BaseEstimator
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from enums.ResamplingMethod import ResamplingMethod
-from enums import ScalingMethod
+from enums.ScalingMethod import ScalingMethod
 
 
 class DatasetService:
@@ -21,46 +21,62 @@ class DatasetService:
         self.__labels = ["No Stress", "Stress"]
         self.__not_needed_columns = [self.__label_column, "Time(sec)", "Participant"]
 
-    def load_training_features(self, which: str | int) -> pd.DataFrame:
+    def load_training_features(self, which: str | int, with_features: bool) -> pd.DataFrame:
+        if with_features:
+            base = self.__path_to_datasets / "with_additional_features" / "features"
+        else:
+            base = self.__path_to_datasets / "no_additional_features" / "features"
         if which == "all":
-            file_to_read = open(self.__path_to_datasets / "features" / "all_training_features.pkl", "rb")
+            file_to_read = open(base / "all_training_features.pkl", "rb")
             x_train = pickle.load(file_to_read)
             file_to_read.close()
         else:
-            file_to_read = open(self.__path_to_datasets / "features" / f"training_features_{which}.pkl", "rb")
+            file_to_read = open(base / f"training_features_{which}.pkl", "rb")
             x_train = pickle.load(file_to_read)
             file_to_read.close()
         return x_train
 
-    def load_testing_features(self, which: str | int) -> pd.DataFrame:
+    def load_testing_features(self, which: str | int, with_features: bool) -> pd.DataFrame:
+        if with_features:
+            base = self.__path_to_datasets / "with_additional_features" / "features"
+        else:
+            base = self.__path_to_datasets / "no_additional_features" / "features"
         if which == "all":
-            file_to_read = open(self.__path_to_datasets / "features" / "all_testing_features.pkl", "rb")
+            file_to_read = open(base / "all_testing_features.pkl", "rb")
             x_train = pickle.load(file_to_read)
             file_to_read.close()
         else:
-            file_to_read = open(self.__path_to_datasets / "features" / f"testing_features_{which}.pkl", "rb")
+            file_to_read = open(base / f"testing_features_{which}.pkl", "rb")
             x_train = pickle.load(file_to_read)
             file_to_read.close()
         return x_train
 
-    def load_training_labels(self, which: str | int) -> pd.DataFrame:
+    def load_training_labels(self, which: str | int, with_features: bool) -> pd.DataFrame:
+        if with_features:
+            base = self.__path_to_datasets / "with_additional_features" / "features"
+        else:
+            base = self.__path_to_datasets / "no_additional_features" / "features"
         if which == "all":
-            file_to_read = open(self.__path_to_datasets / "features" / "all_training_labels.pkl", "rb")
+            file_to_read = open(base / "all_training_labels.pkl", "rb")
             x_train = pickle.load(file_to_read)
             file_to_read.close()
         else:
-            file_to_read = open(self.__path_to_datasets / "features" / f"training_labels_{which}.pkl", "rb")
+            file_to_read = open(base / f"training_labels_{which}.pkl", "rb")
             x_train = pickle.load(file_to_read)
             file_to_read.close()
         return x_train
 
-    def load_testing_labels(self, which: str | int) -> pd.DataFrame:
+    def load_testing_labels(self, which: str | int, with_features: bool) -> pd.DataFrame:
+        if with_features:
+            base = self.__path_to_datasets / "with_additional_features" / "features"
+        else:
+            base = self.__path_to_datasets / "no_additional_features" / "features"
         if which == "all":
-            file_to_read = open(self.__path_to_datasets / "features" / "all_testing_labels.pkl", "rb")
+            file_to_read = open(base / "all_testing_labels.pkl", "rb")
             x_train = pickle.load(file_to_read)
             file_to_read.close()
         else:
-            file_to_read = open(self.__path_to_datasets / "features" / f"testing_labels_{which}.pkl", "rb")
+            file_to_read = open(base / f"testing_labels_{which}.pkl", "rb")
             x_train = pickle.load(file_to_read)
             file_to_read.close()
         return x_train
@@ -78,7 +94,7 @@ class DatasetService:
         return x, y, self.__labels
 
     @staticmethod
-    def get_resampler(method: ResamplingMethod) -> BaseSampler | None:
+    def get_resampler(method: ResamplingMethod | None) -> BaseSampler | None:
         match method:
             case ResamplingMethod.SMOTE:
                 resampler = SMOTE(random_state=42)
@@ -90,20 +106,24 @@ class DatasetService:
                 resampler = TomekLinks()
             case ResamplingMethod.SMOTEENN:
                 resampler = SMOTEENN(random_state=42)
-            case _:
+            case None:
                 resampler = None
+            case _:
+                raise Exception(f"Could not initialize resampler {method.value}")
 
         return resampler
 
     @staticmethod
-    def get_scaler(method: ScalingMethod) -> BaseEstimator | None:
+    def get_scaler(method: ScalingMethod | None) -> BaseEstimator | None:
         match method:
             case ScalingMethod.STANDARDSCALER:
                 scaler = StandardScaler()
             case ScalingMethod.MINMAXSCALER:
                 scaler = MinMaxScaler()
-            case _:
+            case None:
                 scaler = None
+            case _:
+                raise Exception(f"Could not initialize scaler {method.value}")
         return scaler
 
     @staticmethod

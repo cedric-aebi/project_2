@@ -3,37 +3,36 @@ from pathlib import Path
 
 import pandas as pd
 
-from enums import Model
-from enums.ResamplingMethod import ResamplingMethod
-from enums import ScalingMethod
+from enums.Model import Model
 from model.DNNModel import DNNModel
-from model import LogisticRegressionModel
+from model.LogisticRegressionModel import LogisticRegressionModel
 from model.XGBoostModel import XGBoostModel
-from service import DatasetService
-from service import ExportService
+from service.argumentservice.ArgumentService import ArgumentService
+from service.datasetservice.DatasetService import DatasetService
+from service.exportservice.ExportService import ExportService
 
 # ************************ DEFINE CONFIGURATION *****************************
 BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "centralized"
-MODELS = [Model.DNN]
-RESAMPLING_METHODS = [
-    ResamplingMethod.SMOTEENN,
-    ResamplingMethod.SMOTE,
-    ResamplingMethod.TL,
-    ResamplingMethod.OVERSAMPLING,
-    ResamplingMethod.UNDERSAMPLING,
-    None,
-]
-SCALING_METHODS = [ScalingMethod.STANDARDSCALER, ScalingMethod.MINMAXSCALER, None]
 # ***************************************************************************
 
 if __name__ == "__main__":
-    dataset_service = DatasetService()
-    export_service = ExportService(database="project_2_no_windows", collection="centralized")
+    arg_service = ArgumentService(
+        model=True, resampling=True, scaling=True, database=True, collection=True, features=True
+    )
+    model_enum = arg_service.get_model()
+    resampling_methods = arg_service.get_resampling_methods()
+    scaling_methods = arg_service.get_scaling_methods()
+    database = arg_service.get_database()
+    collection = arg_service.get_collection()
+    with_features = arg_service.get_features()
 
-    x_train_all = dataset_service.load_training_features(which="all")
-    x_test_all = dataset_service.load_testing_features(which="all")
-    y_train_all = dataset_service.load_training_labels(which="all")
-    y_test_all = dataset_service.load_testing_labels(which="all")
+    dataset_service = DatasetService()
+    export_service = ExportService(database=database, collection=collection)
+
+    x_train_all = dataset_service.load_training_features(which="all", with_features=with_features)
+    x_test_all = dataset_service.load_testing_features(which="all", with_features=with_features)
+    y_train_all = dataset_service.load_training_labels(which="all", with_features=with_features)
+    y_test_all = dataset_service.load_testing_labels(which="all", with_features=with_features)
 
     x_train_all = pd.concat(x_train_all).to_numpy()
     y_train_all = pd.concat(y_train_all).to_numpy()
@@ -42,13 +41,24 @@ if __name__ == "__main__":
     y_test_all = pd.concat(y_test_all).to_numpy()
 
     # Execute machine learning pipeline for each configured model
-    for model_enum, resampling_method, scaling_method in product(MODELS, RESAMPLING_METHODS, SCALING_METHODS):
+    for model_enum, resampling_method, scaling_method in product([model_enum], resampling_methods, scaling_methods):
+        run_id = export_service.generate_unique_id([model_enum, resampling_method, scaling_method, database])
+
+        if export_service.run_exists(run_id):
+            print(
+                f"Run with: model={model_enum}, resampling_method={resampling_method}, scaling_method={scaling_method}"
+                f" on database {database} already exists"
+            )
+            continue
+
         print(
             f"Executing run with: model={model_enum}, resampling_method={resampling_method}, "
-            f"scaling_method={scaling_method}"
+            f"scaling_method={scaling_method} on database={database}"
         )
+
         # Keep track of what has been done
         run_info = {
+            "_id": run_id,
             "model": model_enum.value,
             "pre-processing": {
                 "resampling": {"method": resampling_method},
@@ -67,7 +77,7 @@ if __name__ == "__main__":
             case Model.LOGISTIC_REGRESSION:
                 model = LogisticRegressionModel(scaler=scaler, resampler=resampler)
             case Model.DNN:
-                model = DNNModel(scaler=scaler, resampler=resampler, number_of_features=2, run_info=run_info)
+                model = DNNModel(scaler=scaler, resampler=resampler, number_of_features=120, run_info=run_info)
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")
 
@@ -83,10 +93,10 @@ if __name__ == "__main__":
 
         # Get training and testing results on individual datasets
         for subject in range(2, 36):
-            x_train = dataset_service.load_training_features(which=subject).to_numpy()
-            x_test = dataset_service.load_testing_features(which=subject).to_numpy()
-            y_train = dataset_service.load_training_labels(which=subject).to_numpy()
-            y_test = dataset_service.load_testing_labels(which=subject).to_numpy()
+            x_train = dataset_service.load_training_features(which=subject, with_features=with_features).to_numpy()
+            x_test = dataset_service.load_testing_features(which=subject, with_features=with_features).to_numpy()
+            y_train = dataset_service.load_training_labels(which=subject, with_features=with_features).to_numpy()
+            y_test = dataset_service.load_testing_labels(which=subject, with_features=with_features).to_numpy()
 
             pred_train = model.predict(x=x_train)
             scores_train, _ = model.evaluate(pred=pred_train, y_true=y_train)
@@ -100,46 +110,7 @@ if __name__ == "__main__":
         # Export run configuration and results to mongodb
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)
         if mongo_id is not None:
-            # Export centralized plots
-            export_service.export_confusion_matrix_display(
-                cm=cm_all,
-                labels=["No-Stress", "Stress"],
-                mongo_id=mongo_id,
-                path=BASE_PATH,
-                which="centralized",
-            )
-            export_service.export_roc_display(
-                mongo_id=mongo_id,
-                x_test=x_test_all,
-                y_test=y_test_all,
-                path=BASE_PATH,
-                model=model.get_fitted_model(),
-                which="centralized",
-            )
-
-            # Export individual results
-            for subject in range(2, 36):
-                x_test = dataset_service.load_testing_features(which=subject).to_numpy()
-                y_test = dataset_service.load_testing_labels(which=subject).to_numpy()
-
-                pred_test = model.predict(x=x_test)
-                scores_test, cm = model.evaluate(pred=pred_test, y_true=y_test)
-
-                export_service.export_confusion_matrix_display(
-                    cm=cm,
-                    labels=["No-Stress", "Stress"],
-                    mongo_id=mongo_id,
-                    path=BASE_PATH,
-                    which=subject,
-                )
-                export_service.export_roc_display(
-                    mongo_id=mongo_id,
-                    x_test=x_test,
-                    y_test=y_test,
-                    path=BASE_PATH,
-                    model=model.get_fitted_model(),
-                    which=subject,
-                )
+            model.save_model(path=BASE_PATH / "models" / f"{run_id}.joblib")
 
         # Cleanup some memory
         del model

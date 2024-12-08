@@ -1,14 +1,14 @@
 from itertools import product
 from pathlib import Path
 
-from enums.Model import Model
+from enums import Model
 from enums.ResamplingMethod import ResamplingMethod
-from enums.ScalingMethod import ScalingMethod
+from enums import ScalingMethod
 from model.DNNModel import DNNModel
-from model.LogisticRegressionModel import LogisticRegressionModel
+from model import LogisticRegressionModel
 from model.XGBoostModel import XGBoostModel
-from service.datasetservice.DatasetService import DatasetService
-from service.exportservice.ExportService import ExportService
+from service import DatasetService
+from service import ExportService
 
 # ************************ DEFINE CONFIGURATION *****************************
 BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individual"

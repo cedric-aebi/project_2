@@ -1,7 +1,7 @@
 from pathlib import Path
 import pickle
 
-from service.datasetservice.DatasetService import DatasetService
+from service import DatasetService
 
 # ************************ DEFINE CONFIGURATION *****************************
 EXPORT_PATH = Path(__file__).parent.parent / "dataset" / "features"

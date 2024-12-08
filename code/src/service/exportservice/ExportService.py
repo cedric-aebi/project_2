@@ -1,5 +1,6 @@
 import hashlib
 import json
+import pickle
 import statistics
 from pathlib import Path
 from typing import Any
@@ -9,18 +10,26 @@ import pandas as pd
 from pymongo import MongoClient
 from pymongo.collection import Collection
 
-from enums import Model
-from service.visualizationservice import VisualizationService
+from enums.Model import Model
+from service.visualizationservice.VisualizationService import VisualizationService
 
 
 class ExportService:
-    def __init__(self, database: str, collection: str):
-        self.__client = MongoClient("localhost", 27017)
-        self.__db = self.__client[database]
-        self.__collection: Collection = self.__db[collection]
+    def __init__(self, database: str | None = None, collection: str | None = None):
+        if database is not None and collection is not None:
+            client = MongoClient("localhost", 27017)
+            db = client[database]
+            self.__collection: Collection = db[collection]
+
+    def run_exists(self, run_id: str) -> bool:
+        if self.__collection is None:
+            raise ValueError("Collection not initialized.")
+        return bool(self.__collection.find_one({"_id": run_id}))
 
     def export_run_to_mongodb(self, run_info: dict) -> str | None:
-        run_info["_id"] = self._dict_hash(dictionary=run_info)
+        if self.__collection is None:
+            raise ValueError("Collection not initialized.")
+
         if not self.__collection.find_one({"_id": run_info["_id"]}):
             print(f"Exporting run with id {run_info['_id']}")
             self.__collection.insert_one(run_info)
@@ -29,6 +38,9 @@ class ExportService:
             print(f"Run with id {run_info['_id']} already exists. Not exporting.")
 
     def update_documents_with_average_scoring(self, collection: str) -> None:
+        if self.__collection is None:
+            raise ValueError("Collection not initialized.")
+
         documents = self.__collection.find()
 
         match collection:
@@ -143,6 +155,9 @@ class ExportService:
                 self.__collection.insert_one(document_to_insert)
 
     def export_results_to_csv(self, collection: str, model: Model, base_path: Path) -> None:
+        if self.__collection is None:
+            raise ValueError("Collection not initialized.")
+
         match collection:
             case "centralized":
                 best = self.__collection.find({"model": model}).sort("average_scoring.mean_f1", -1)[0]
@@ -261,6 +276,9 @@ class ExportService:
                 df.to_csv(base_path / collection / f"{model}.csv", index=False)
 
     def export_pre_processing_comparison(self, base_path: Path) -> None:
+        if self.__collection is None:
+            raise ValueError("Collection not initialized.")
+
         documents = []
 
         # Logistic Regression Models
@@ -343,6 +361,14 @@ class ExportService:
         df.to_csv(base_path / "comparison.csv", index=False)
 
     @staticmethod
+    def generate_unique_id(params: list[str]) -> str:
+        # Combine the strings in a deterministic order
+        combined = "|".join(sorted(params))
+        # Use a hash function to generate a unique ID
+        unique_id = hashlib.sha256(combined.encode()).hexdigest()
+        return unique_id
+
+    @staticmethod
     def _dict_hash(dictionary: dict[str, Any]) -> str:
         """MD5 hash of a dictionary."""
         dhash = hashlib.md5()
@@ -351,6 +377,12 @@ class ExportService:
         encoded = json.dumps(dictionary, sort_keys=True).encode()
         dhash.update(encoded)
         return dhash.hexdigest()
+
+    @staticmethod
+    def export_file(path: Path, data: Any) -> None:
+        file_to_store = open(path, "wb")
+        pickle.dump(data, file_to_store)
+        file_to_store.close()
 
     @staticmethod
     def export_class_distribution_plot(dataset: pd.DataFrame, base_path: Path) -> None:

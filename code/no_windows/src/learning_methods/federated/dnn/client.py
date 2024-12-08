@@ -9,11 +9,11 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from scikeras.wrappers import KerasClassifier
 
-from enums.Model import Model
+from enums import Model
 from enums.ResamplingMethod import ResamplingMethod
-from learning_methods.federated.dnn import utils
-from service.datasetservice.DatasetService import DatasetService
-from service.exportservice.ExportService import ExportService
+from learning_methods import utils
+from service import DatasetService
+from service import ExportService
 
 
 class Client:

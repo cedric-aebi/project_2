@@ -10,11 +10,11 @@ from pymongo.collection import Collection
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss
 
-from enums.Model import Model
+from enums import Model
 from enums.ResamplingMethod import ResamplingMethod
-from learning_methods.federated.logistic_regression import utils
-from service.datasetservice.DatasetService import DatasetService
-from service.exportservice.ExportService import ExportService
+from learning_methods import utils
+from service import DatasetService
+from service import ExportService
 
 
 class Server:

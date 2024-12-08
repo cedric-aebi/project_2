@@ -1,6 +1,6 @@
 from pathlib import Path
-from enums.Model import Model
-from service.exportservice.ExportService import ExportService
+from enums import Model
+from service import ExportService
 
 BASE_PATH = Path(__file__).parent.parent / "results" / "csv"
 COLLECTION = "federated"

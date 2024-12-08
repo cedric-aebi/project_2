@@ -1,6 +1,7 @@
 import uuid
 from pathlib import Path
 
+import joblib
 import numpy as np
 import keras
 from imblearn.base import BaseSampler
@@ -10,7 +11,7 @@ import tensorflow as tf
 from scikeras.wrappers import KerasClassifier
 from sklearn.base import BaseEstimator
 
-from model import AbstractModel
+from model.AbstractModel import AbstractModel
 
 
 class DNNModel(AbstractModel):
@@ -47,11 +48,13 @@ class DNNModel(AbstractModel):
     @staticmethod
     def _build_model(number_of_features: int) -> keras.Sequential:
         # Define the model
-        # For the non-window approach use a simpler model
         model = keras.Sequential()
-        model.add(layers.Dense(16, input_dim=number_of_features, activation="relu"))
-        model.add(layers.Dense(8, activation="relu"))
-        model.add(layers.Dense(4, activation="relu"))
+        model.add(layers.Dense(512, input_dim=number_of_features, activation="relu"))
+        model.add(layers.Dense(256, activation="relu"))
+        model.add(layers.Dense(128, activation="relu"))
+        model.add(layers.Dense(64, activation="relu"))
+        model.add(layers.Dense(54, activation="relu"))
+        model.add(layers.Dense(50, activation="relu"))
         # Output layer with 1 neuron, sigmoid activation for binary classification
         model.add(layers.Dense(1, activation="sigmoid"))
 
@@ -59,3 +62,8 @@ class DNNModel(AbstractModel):
 
     def get_fitted_model(self) -> Pipeline:
         return self._pipeline
+
+    def save_model(self, path: Path) -> None:
+        if self._pipeline is None:
+            raise Exception("Model has not been trained yet")
+        joblib.dump(self._pipeline, path)

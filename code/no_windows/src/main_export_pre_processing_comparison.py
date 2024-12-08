@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from service.exportservice.ExportService import ExportService
+from service import ExportService
 
 if __name__ == "__main__":
     base_path = Path(__file__).parent.parent / "results" / "csv" / "pre-processing"

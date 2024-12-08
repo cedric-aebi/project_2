@@ -12,12 +12,12 @@ from pymongo.collection import Collection
 from sklearn.preprocessing import MinMaxScaler
 from xgboost import Booster
 
-from enums.Model import Model
+from enums import Model
 from enums.ResamplingMethod import ResamplingMethod
-from enums.ScalingMethod import ScalingMethod
+from enums import ScalingMethod
 from learning_methods.federated.xgboost_ import utils
-from service.datasetservice.DatasetService import DatasetService
-from service.exportservice.ExportService import ExportService
+from service import DatasetService
+from service import ExportService
 
 
 class Server:

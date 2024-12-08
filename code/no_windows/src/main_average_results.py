@@ -1,4 +1,4 @@
-from service.exportservice.ExportService import ExportService
+from service import ExportService
 
 DATABASE = "project_2_no_windows"
 COLLECTION = "federated"

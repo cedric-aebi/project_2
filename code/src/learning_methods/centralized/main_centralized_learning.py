@@ -1,6 +1,8 @@
+from copy import deepcopy
 from itertools import product
 from pathlib import Path
 
+import joblib
 import pandas as pd
 
 from enums.Model import Model
@@ -16,18 +18,15 @@ BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "centralize
 # ***************************************************************************
 
 if __name__ == "__main__":
-    arg_service = ArgumentService(
-        model=True, resampling=True, scaling=True, database=True, collection=True, features=True
-    )
+    arg_service = ArgumentService(model=True, resampling=True, scaling=True, database=True, features=True)
     model_enum = arg_service.get_model()
     resampling_methods = arg_service.get_resampling_methods()
     scaling_methods = arg_service.get_scaling_methods()
     database = arg_service.get_database()
-    collection = arg_service.get_collection()
     with_features = arg_service.get_features()
 
     dataset_service = DatasetService()
-    export_service = ExportService(database=database, collection=collection)
+    export_service = ExportService(database=database, collection="centralized")
 
     x_train_all = dataset_service.load_training_features(which="all", with_features=with_features)
     x_test_all = dataset_service.load_testing_features(which="all", with_features=with_features)
@@ -108,9 +107,8 @@ if __name__ == "__main__":
             run_info["individual_scoring"].append(scores)
 
         # Export run configuration and results to mongodb
+        joblib.dump(model, BASE_PATH / "models" / f"{run_id}.joblib")
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)
-        if mongo_id is not None:
-            model.save_model(path=BASE_PATH / "models" / f"{run_id}.joblib")
 
         # Cleanup some memory
         del model

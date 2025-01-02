@@ -1,5 +1,4 @@
 import hashlib
-import json
 import pickle
 import statistics
 from pathlib import Path
@@ -363,20 +362,10 @@ class ExportService:
     @staticmethod
     def generate_unique_id(params: list[str]) -> str:
         # Combine the strings in a deterministic order
-        combined = "|".join(sorted(params))
+        combined = "|".join(sorted([(str(param) or "") for param in params]))
         # Use a hash function to generate a unique ID
         unique_id = hashlib.sha256(combined.encode()).hexdigest()
         return unique_id
-
-    @staticmethod
-    def _dict_hash(dictionary: dict[str, Any]) -> str:
-        """MD5 hash of a dictionary."""
-        dhash = hashlib.md5()
-        # We need to sort arguments so {'a': 1, 'b': 2} is
-        # the same as {'b': 2, 'a': 1}
-        encoded = json.dumps(dictionary, sort_keys=True).encode()
-        dhash.update(encoded)
-        return dhash.hexdigest()
 
     @staticmethod
     def export_file(path: Path, data: Any) -> None:
@@ -390,13 +379,13 @@ class ExportService:
 
     @staticmethod
     def export_confusion_matrix_display(
-        mongo_id: str, which: str | int, cm: np.ndarray, labels: list[str], path: Path
+        run_id: str, which: str | int, cm: np.ndarray, labels: list[str], path: Path
     ) -> None:
-        VisualizationService.plot_confusion_matrix(cm=cm, labels=labels, path=path / mongo_id / f"subject_{which}")
+        VisualizationService.plot_confusion_matrix(cm=cm, labels=labels, path=path / run_id / f"subject_{which}")
 
     @staticmethod
     def export_roc_display(
-        mongo_id: str,
+        run_id: str,
         which: str | int,
         x_test: np.ndarray,
         y_test: np.ndarray,
@@ -406,7 +395,7 @@ class ExportService:
         estimator_name: str | None = None,
     ) -> None:
         VisualizationService.plot_roc(
-            path=path / mongo_id / f"subject_{which}",
+            path=path / run_id / f"subject_{which}",
             x_test=x_test,
             y_test=y_test,
             model=model,

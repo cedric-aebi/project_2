@@ -1,9 +1,12 @@
-from enum import StrEnum
+from enum import Enum
 
 
-class ResamplingMethod(StrEnum):
+class ResamplingMethod(Enum):
     SMOTE = "SMOTE"
     TL = "TOMELINKS"
     UNDERSAMPLING = "UNDERSAMPLING"
     OVERSAMPLING = "OVERSAMPLING"
     SMOTEENN = "SMOTEENN"
+
+    def __str__(self):
+        return str(self.value)

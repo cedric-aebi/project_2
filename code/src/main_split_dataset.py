@@ -33,7 +33,7 @@ if __name__ == "__main__":
         loaded_features = pickle.load(file_to_read)
         file_to_read.close()
 
-        file_to_read = open(DATASET_PATH / "with_additional_features" / "all_label.pkl", "rb")
+        file_to_read = open(DATASET_PATH / "with_additional_features" / "all_labels.pkl", "rb")
         loaded_labels = pickle.load(file_to_read)
         file_to_read.close()
 

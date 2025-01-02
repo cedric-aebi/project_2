@@ -17,8 +17,10 @@ if __name__ == "__main__":
     dataset = dataset_service.load_dataset()
 
     all_features = []
-    all_label = []
+    all_labels = []
     for subject in range(2, 36):
+        print(f"Subject: {subject}")
+
         subject_data = dataset[dataset["Participant"] == subject]
 
         # Fill the NaN values with the previous and next values
@@ -73,7 +75,7 @@ if __name__ == "__main__":
 
         LABEL = np.concatenate((label_1, label_2, label_3, label_4, label_5, label_6, label_7), axis=0)
 
-        all_label.append(LABEL)
+        all_labels.append(LABEL)
 
         # Construct the feature matrix, 60 HR features and 60 RESP features = 120 features in total.
 
@@ -112,6 +114,9 @@ if __name__ == "__main__":
 
         all_features.append(features)
 
+    all_features = np.concatenate(all_features, axis=0)
+    all_labels = np.concatenate(all_labels, axis=0)
+
     if not os.path.exists(EXPORT_PATH):
         os.makedirs(EXPORT_PATH)
 
@@ -119,6 +124,6 @@ if __name__ == "__main__":
     pickle.dump(all_features, file_to_store)
     file_to_store.close()
 
-    file_to_store = open(EXPORT_PATH / "all_label.pkl", "wb")
-    pickle.dump(all_label, file_to_store)
+    file_to_store = open(EXPORT_PATH / "all_labels.pkl", "wb")
+    pickle.dump(all_labels, file_to_store)
     file_to_store.close()

@@ -1,6 +1,9 @@
-from enum import StrEnum
+from enum import Enum
 
 
-class ScalingMethod(StrEnum):
+class ScalingMethod(Enum):
     STANDARDSCALER = "StandardScaler"
     MINMAXSCALER = "MinMaxScaler"
+
+    def __str__(self):
+        return str(self.value)

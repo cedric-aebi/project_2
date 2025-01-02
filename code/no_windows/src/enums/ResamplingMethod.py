@@ -1,7 +1,7 @@
-from enum import StrEnum
+from enum import Enum
 
 
-class ResamplingMethod(StrEnum):
+class ResamplingMethod(Enum):
     SMOTE = "SMOTE"
     TL = "TOMELINKS"
     UNDERSAMPLING = "UNDERSAMPLING"

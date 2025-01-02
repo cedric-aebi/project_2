@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -12,18 +11,22 @@ from sklearn.model_selection import StratifiedKFold
 
 class AbstractModel(ABC):
     def __init__(
-        self, model: Any, scaler: BaseEstimator, resampler: BaseSampler, hyperparameter_grid: dict | None = None
+        self,
+        clf: Any,
+        scaler: BaseEstimator | None,
+        resampler: BaseSampler | None,
+        hyperparameter_grid: dict | None = None,
     ) -> None:
-        self._kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
-        self._model = model
+        self._cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+        self._clf = clf
         self._hyperparameter_grid = hyperparameter_grid
         self._scaler = scaler
         self._resampler = resampler
-        self._pipeline = Pipeline([("scaler", self._scaler), ("resampler", self._resampler), ("model", self._model)])
+        self._pipeline = Pipeline([("scaler", self._scaler), ("resampler", self._resampler), ("clf", self._clf)])
         self._best_estimator = None
 
     def get_hyperparameter_grid(self) -> dict | None:
-        return self._hyperparameter_grid
+        return dict(sorted(self._hyperparameter_grid.items()))
 
     @abstractmethod
     def fit(self, x_train: np.ndarray, y_train: np.ndarray, run_info: dict) -> None:
@@ -64,9 +67,5 @@ class AbstractModel(ABC):
         return tp, tn, fp, fn
 
     @abstractmethod
-    def get_fitted_model(self) -> Pipeline | BaseEstimator:
-        pass
-
-    @abstractmethod
-    def save_model(self, path: Path) -> None:
+    def get_fitted_model(self) -> Pipeline:
         pass

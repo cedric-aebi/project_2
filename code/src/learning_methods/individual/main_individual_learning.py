@@ -46,8 +46,8 @@ if __name__ == "__main__":
             "model": model_enum.value,
             "pre-processing": {
                 "features": with_features,
-                "resampling": {"method": resampling_method.value},
-                "scaling": {"method": scaling_method.value},
+                "resampling": {"method": resampling_method.value if resampling_method is not None else None},
+                "scaling": {"method": scaling_method.value if scaling_method is not None else None},
             },
             "subjects": [],
             "hyperparameters": dummy_model.get_hyperparameter_grid(),

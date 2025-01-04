@@ -82,19 +82,14 @@ class ArgumentService:
             match method:
                 case "smote":
                     resampling_methods.append(ResamplingMethod.SMOTE)
-                    break
                 case "smoteenn":
                     resampling_methods.append(ResamplingMethod.SMOTEENN)
-                    break
                 case "tl":
                     resampling_methods.append(ResamplingMethod.TL)
-                    break
                 case "oversampling":
                     resampling_methods.append(ResamplingMethod.OVERSAMPLING)
-                    break
                 case "none":
                     resampling_methods.append(None)
-                    break
                 case _:
                     raise ValueError("Resampling method not recognized")
         return resampling_methods
@@ -105,13 +100,10 @@ class ArgumentService:
             match method:
                 case "standard":
                     scaling_methods.append(ScalingMethod.STANDARDSCALER)
-                    break
                 case "minmax":
                     scaling_methods.append(ScalingMethod.MINMAXSCALER)
-                    break
                 case "none":
                     scaling_methods.append(None)
-                    break
                 case _:
                     raise ValueError("Scaling method not recognized")
         return scaling_methods

@@ -77,8 +77,6 @@ if __name__ == "__main__":
         scores_train_all, _ = model.evaluate(pred=pred_train_all, y_true=y_train_all)
         pred_test_all = model.predict(x=x_test_all)
         scores_test_all, cm_all = model.evaluate(pred=pred_test_all, y_true=y_test_all)
-        print(scores_test_all)
-        sys.exit()
         run_info["centralized_scoring"] = {"training_set": scores_train_all, "testing_set": scores_test_all}
 
         # 6. Get training and testing results on individual datasets

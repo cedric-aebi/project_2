@@ -26,7 +26,7 @@ class XGBoostModel(AbstractModel):
             "clf__reg_lambda": [0],  # 0.1, 1 and 10 for L2 regularization
         }
         super().__init__(
-            clf=XGBClassifier(random_state=42),
+            clf=XGBClassifier(random_state=42, device="cpu"),
             hyperparameter_grid=hyperparameter_grid,
             scaler=scaler,
             resampler=resampler,

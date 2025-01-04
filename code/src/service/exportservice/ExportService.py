@@ -16,7 +16,7 @@ from service.visualizationservice.VisualizationService import VisualizationServi
 class ExportService:
     def __init__(self, database: str | None = None, collection: str | None = None):
         if database is not None and collection is not None:
-            client = MongoClient("localhost", 27017)
+            client = MongoClient("localhost", 3011)
             db = client[database]
             self.__collection: Collection = db[collection]
 

@@ -18,6 +18,7 @@ from model.AbstractModel import AbstractModel
 
 class ShallowNNModel(AbstractModel):
     def __init__(self, scaler: BaseEstimator | None, resampler: BaseSampler | None, input_shape: int):
+        tf.config.set_visible_devices([], "GPU")
         tf.random.set_seed(42)
         keras.utils.set_random_seed(42)
         self._grid_search_cv = None

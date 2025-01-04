@@ -49,10 +49,21 @@ class FeatureService:
     @staticmethod
     def get_statistics(
         data: np.ndarray,
-    ) -> tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any]:
-        avg = np.mean(data)
-        sd = np.std(data)
-        maxm = max(data)
-        minm = min(data)
-        s_mean, s_med, _, _, s_max, _, s_var, s_std_dev, s_abs_dev, _, s_kurtois, s_skew = tools.signal_stats(data)
-        return avg, sd, maxm, minm, s_med, s_max, s_var, s_abs_dev, s_kurtois, s_skew
+    ) -> tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any]:
+        s_mean, s_median, s_min, s_max, s_max_amp, s_range, s_var, s_std_dev, s_abs_dev, s_rms, s_kurtosis, s_skew = (
+            tools.signal_stats(data)
+        )
+        return (
+            s_mean,
+            s_median,
+            s_min,
+            s_max,
+            s_max_amp,
+            s_range,
+            s_var,
+            s_std_dev,
+            s_abs_dev,
+            s_rms,
+            s_kurtosis,
+            s_skew,
+        )

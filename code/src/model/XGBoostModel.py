@@ -1,6 +1,12 @@
-import numpy as np
-from imblearn.base import BaseSampler
+import os
+import warnings
+
+warnings.simplefilter("ignore", category=FutureWarning)
+os.environ["PYTHONWARNINGS"] = "ignore::FutureWarning"
+
 from imblearn.pipeline import Pipeline
+import pandas as pd
+from imblearn.base import BaseSampler
 from sklearn.base import BaseEstimator
 from sklearn.model_selection import GridSearchCV
 from xgboost import XGBClassifier
@@ -12,8 +18,12 @@ class XGBoostModel(AbstractModel):
     def __init__(self, scaler: BaseEstimator | None, resampler: BaseSampler | None):
         self._grid_search_cv = None
         hyperparameter_grid = {
-            "clf__n_estimators": [10, 20, 50, 100, 150, 200, 250, 300, 350],
-            "clf__max_depth": range(2, 12, 2),
+            "clf__n_estimators": [10, 50, 100, 200, 300, 400],
+            "clf__subsample": [0.8, 1.0],
+            "clf__colsample_bytree": [0.8, 1.0],
+            "clf__max_depth": [2, 4, 6, 8, 10],
+            "clf__reg_alpha": [0],  # 0.1, 1 and 10 for L1 regularization
+            "clf__reg_lambda": [0],  # 0.1, 1 and 10 for L2 regularization
         }
         super().__init__(
             clf=XGBClassifier(random_state=42),
@@ -22,15 +32,15 @@ class XGBoostModel(AbstractModel):
             resampler=resampler,
         )
 
-    def fit(self, x_train: np.ndarray, y_train: np.ndarray, run_info: dict) -> None:
+    def fit(self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict) -> None:
         self._grid_search_cv = GridSearchCV(
-            estimator=self._pipeline, param_grid=self._hyperparameter_grid, cv=self._cv, n_jobs=-1
+            estimator=self._pipeline, param_grid=self._hyperparameter_grid, cv=self._cv, n_jobs=-1, verbose=2
         )
         self._grid_search_cv.fit(x_train, y_train)
         self._best_estimator = self._grid_search_cv.best_estimator_
         run_info["best_params"] = self._grid_search_cv.best_params_
 
-    def predict(self, x: np.ndarray) -> np.ndarray:
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
         return self._best_estimator.predict(x)
 
     def get_fitted_model(self) -> Pipeline:

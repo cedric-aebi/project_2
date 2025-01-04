@@ -1,23 +1,22 @@
 import os
-import pickle
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pywt
 
 from service.datasetservice.DatasetService import DatasetService
 from service.featureservice.FeatureService import FeatureService
 
-EXPORT_PATH = Path(__file__).parent.parent / "dataset" / "with_additional_features"
+EXPORT_PATH = Path(__file__).parent.parent / "dataset"
 
 if __name__ == "__main__":
     dataset_service = DatasetService()
     feature_service = FeatureService()
 
-    dataset = dataset_service.load_dataset()
+    dataset = dataset_service.load_original_dataset()
 
-    all_features = []
-    all_labels = []
+    final_dataframe = pd.DataFrame()
     for subject in range(2, 36):
         print(f"Subject: {subject}")
 
@@ -75,13 +74,9 @@ if __name__ == "__main__":
 
         LABEL = np.concatenate((label_1, label_2, label_3, label_4, label_5, label_6, label_7), axis=0)
 
-        all_labels.append(LABEL)
-
-        # Construct the feature matrix, 60 HR features and 60 RESP features = 120 features in total.
-
+        # Construct the feature matrix, 72 HR features and 72 RESP features = 144 features in total.
         length = len(LABEL)
-        features = np.zeros((length, 120))
-
+        rows = []
         for i in range(length):
             if i % 500 == 0:
                 print(i)
@@ -92,38 +87,190 @@ if __name__ == "__main__":
             _, HR_cD_3, HR_cD_2, HR_cD_1 = pywt.wavedec(HR[i, :], "Haar", level=3)  # 3 = 1Hz, 2 = 2Hz, 1=4Hz
             _, RESPR_cD_3, RESPR_cD_2, RESPR_cD_1 = pywt.wavedec(RESPR[i, :], "Haar", level=3)
 
+            feature_dict = {"Subject": subject, "Label": LABEL[i]}
+
             # ----- HR features -----
             # HR statistical features:
-            features[i, 0:10] = feature_service.get_statistics(data=HR[i, :])
-            features[i, 10:20] = feature_service.get_statistics(data=deriv_HR)
-            features[i, 20:30] = feature_service.get_statistics(data=second_deriv_HR)
+            (
+                feature_dict["HR_mean"],
+                feature_dict["HR_median"],
+                feature_dict["HR_min"],
+                feature_dict["HR_max"],
+                feature_dict["HR_max_amp"],
+                feature_dict["HR_range"],
+                feature_dict["HR_var"],
+                feature_dict["HR_std_dev"],
+                feature_dict["HR_abs_dev"],
+                feature_dict["HR_rms"],
+                feature_dict["HR_kurtosis"],
+                feature_dict["HR_skew"],
+            ) = feature_service.get_statistics(data=HR[i, :])
+            (
+                feature_dict["Deriv_HR_mean"],
+                feature_dict["Deriv_HR_median"],
+                feature_dict["Deriv_HR_min"],
+                feature_dict["Deriv_HR_max"],
+                feature_dict["Deriv_HR_max_amp"],
+                feature_dict["Deriv_HR_range"],
+                feature_dict["Deriv_HR_var"],
+                feature_dict["Deriv_HR_std_dev"],
+                feature_dict["Deriv_HR_abs_dev"],
+                feature_dict["Deriv_HR_rms"],
+                feature_dict["Deriv_HR_kurtosis"],
+                feature_dict["Deriv_HR_skew"],
+            ) = feature_service.get_statistics(data=deriv_HR)
+            (
+                feature_dict["Deriv_2_HR_mean"],
+                feature_dict["Deriv_2_HR_median"],
+                feature_dict["Deriv_2_HR_min"],
+                feature_dict["Deriv_2_HR_max"],
+                feature_dict["Deriv_2_HR_max_amp"],
+                feature_dict["Deriv_2_HR_range"],
+                feature_dict["Deriv_2_HR_var"],
+                feature_dict["Deriv_2_HR_std_dev"],
+                feature_dict["Deriv_2_HR_abs_dev"],
+                feature_dict["Deriv_2_HR_rms"],
+                feature_dict["Deriv_2_HR_kurtosis"],
+                feature_dict["Deriv_2_HR_skew"],
+            ) = feature_service.get_statistics(data=second_deriv_HR)
             # HR wavelet features:
-            features[i, 30:40] = feature_service.get_statistics(data=HR_cD_3)
-            features[i, 40:50] = feature_service.get_statistics(data=HR_cD_2)
-            features[i, 50:60] = feature_service.get_statistics(data=HR_cD_1)
+            (
+                feature_dict["Wavelet_1Hz_HR_mean"],
+                feature_dict["Wavelet_1Hz_HR_median"],
+                feature_dict["Wavelet_1Hz_HR_min"],
+                feature_dict["Wavelet_1Hz_HR_max"],
+                feature_dict["Wavelet_1Hz_HR_max_amp"],
+                feature_dict["Wavelet_1Hz_HR_range"],
+                feature_dict["Wavelet_1Hz_HR_var"],
+                feature_dict["Wavelet_1Hz_HR_std_dev"],
+                feature_dict["Wavelet_1Hz_HR_abs_dev"],
+                feature_dict["Wavelet_1Hz_HR_rms"],
+                feature_dict["Wavelet_1Hz_HR_kurtosis"],
+                feature_dict["Wavelet_1Hz_HR_skew"],
+            ) = feature_service.get_statistics(data=HR_cD_3)
+            (
+                feature_dict["Wavelet_2Hz_HR_mean"],
+                feature_dict["Wavelet_2Hz_HR_median"],
+                feature_dict["Wavelet_2Hz_HR_min"],
+                feature_dict["Wavelet_2Hz_HR_max"],
+                feature_dict["Wavelet_2Hz_HR_max_amp"],
+                feature_dict["Wavelet_2Hz_HR_range"],
+                feature_dict["Wavelet_2Hz_HR_var"],
+                feature_dict["Wavelet_2Hz_HR_std_dev"],
+                feature_dict["Wavelet_2Hz_HR_abs_dev"],
+                feature_dict["Wavelet_2Hz_HR_rms"],
+                feature_dict["Wavelet_2Hz_HR_kurtosis"],
+                feature_dict["Wavelet_2Hz_HR_skew"],
+            ) = feature_service.get_statistics(data=HR_cD_2)
+            (
+                feature_dict["Wavelet_4Hz_HR_mean"],
+                feature_dict["Wavelet_4Hz_HR_median"],
+                feature_dict["Wavelet_4Hz_HR_min"],
+                feature_dict["Wavelet_4Hz_HR_max"],
+                feature_dict["Wavelet_4Hz_HR_max_amp"],
+                feature_dict["Wavelet_4Hz_HR_range"],
+                feature_dict["Wavelet_4Hz_HR_var"],
+                feature_dict["Wavelet_4Hz_HR_std_dev"],
+                feature_dict["Wavelet_4Hz_HR_abs_dev"],
+                feature_dict["Wavelet_4Hz_HR_rms"],
+                feature_dict["Wavelet_4Hz_HR_kurtosis"],
+                feature_dict["Wavelet_4Hz_HR_skew"],
+            ) = feature_service.get_statistics(data=HR_cD_1)
 
             # ----- RESPR features -----
             # RESPR statistical features:
-            features[i, 60:70] = feature_service.get_statistics(data=RESPR[i, :])
-            features[i, 70:80] = feature_service.get_statistics(data=deriv_RESPR)
-            features[i, 80:90] = feature_service.get_statistics(data=second_deriv_RESPR)
+            (
+                feature_dict["RESPR_mean"],
+                feature_dict["RESPR_median"],
+                feature_dict["RESPR_min"],
+                feature_dict["RESPR_max"],
+                feature_dict["RESPR_max_amp"],
+                feature_dict["RESPR_range"],
+                feature_dict["RESPR_var"],
+                feature_dict["RESPR_std_dev"],
+                feature_dict["RESPR_abs_dev"],
+                feature_dict["RESPR_rms"],
+                feature_dict["RESPR_kurtosis"],
+                feature_dict["RESPR_skew"],
+            ) = feature_service.get_statistics(data=RESPR[i, :])
+            (
+                feature_dict["Deriv_RESPR_mean"],
+                feature_dict["Deriv_RESPR_median"],
+                feature_dict["Deriv_RESPR_min"],
+                feature_dict["Deriv_RESPR_max"],
+                feature_dict["Deriv_RESPR_max_amp"],
+                feature_dict["Deriv_RESPR_range"],
+                feature_dict["Deriv_RESPR_var"],
+                feature_dict["Deriv_RESPR_std_dev"],
+                feature_dict["Deriv_RESPR_abs_dev"],
+                feature_dict["Deriv_RESPR_rms"],
+                feature_dict["Deriv_RESPR_kurtosis"],
+                feature_dict["Deriv_RESPR_skew"],
+            ) = feature_service.get_statistics(data=deriv_RESPR)
+            (
+                feature_dict["Deriv_2_RESPR_mean"],
+                feature_dict["Deriv_2_RESPR_median"],
+                feature_dict["Deriv_2_RESPR_min"],
+                feature_dict["Deriv_2_RESPR_max"],
+                feature_dict["Deriv_2_RESPR_max_amp"],
+                feature_dict["Deriv_2_RESPR_range"],
+                feature_dict["Deriv_2_RESPR_var"],
+                feature_dict["Deriv_2_RESPR_std_dev"],
+                feature_dict["Deriv_2_RESPR_abs_dev"],
+                feature_dict["Deriv_2_RESPR_rms"],
+                feature_dict["Deriv_2_RESPR_kurtosis"],
+                feature_dict["Deriv_2_RESPR_skew"],
+            ) = feature_service.get_statistics(data=second_deriv_RESPR)
             # RESPR wavelet features:
-            features[i, 90:100] = feature_service.get_statistics(data=RESPR_cD_3)
-            features[i, 100:110] = feature_service.get_statistics(data=RESPR_cD_2)
-            features[i, 110:120] = feature_service.get_statistics(data=RESPR_cD_1)
+            (
+                feature_dict["Wavelet_1Hz_RESPR_mean"],
+                feature_dict["Wavelet_1Hz_RESPR_median"],
+                feature_dict["Wavelet_1Hz_RESPR_min"],
+                feature_dict["Wavelet_1Hz_RESPR_max"],
+                feature_dict["Wavelet_1Hz_RESPR_max_amp"],
+                feature_dict["Wavelet_1Hz_RESPR_range"],
+                feature_dict["Wavelet_1Hz_RESPR_var"],
+                feature_dict["Wavelet_1Hz_RESPR_std_dev"],
+                feature_dict["Wavelet_1Hz_RESPR_abs_dev"],
+                feature_dict["Wavelet_1Hz_RESPR_rms"],
+                feature_dict["Wavelet_1Hz_RESPR_kurtosis"],
+                feature_dict["Wavelet_1Hz_RESPR_skew"],
+            ) = feature_service.get_statistics(data=RESPR_cD_3)
+            (
+                feature_dict["Wavelet_2Hz_RESPR_mean"],
+                feature_dict["Wavelet_2Hz_RESPR_median"],
+                feature_dict["Wavelet_2Hz_RESPR_min"],
+                feature_dict["Wavelet_2Hz_RESPR_max"],
+                feature_dict["Wavelet_2Hz_RESPR_max_amp"],
+                feature_dict["Wavelet_2Hz_RESPR_range"],
+                feature_dict["Wavelet_2Hz_RESPR_var"],
+                feature_dict["Wavelet_2Hz_RESPR_std_dev"],
+                feature_dict["Wavelet_2Hz_RESPR_abs_dev"],
+                feature_dict["Wavelet_2Hz_RESPR_rms"],
+                feature_dict["Wavelet_2Hz_RESPR_kurtosis"],
+                feature_dict["Wavelet_2Hz_RESPR_skew"],
+            ) = feature_service.get_statistics(data=RESPR_cD_2)
+            (
+                feature_dict["Wavelet_4Hz_RESPR_mean"],
+                feature_dict["Wavelet_4Hz_RESPR_median"],
+                feature_dict["Wavelet_4Hz_RESPR_min"],
+                feature_dict["Wavelet_4Hz_RESPR_max"],
+                feature_dict["Wavelet_4Hz_RESPR_max_amp"],
+                feature_dict["Wavelet_4Hz_RESPR_range"],
+                feature_dict["Wavelet_4Hz_RESPR_var"],
+                feature_dict["Wavelet_4Hz_RESPR_std_dev"],
+                feature_dict["Wavelet_4Hz_RESPR_abs_dev"],
+                feature_dict["Wavelet_4Hz_RESPR_rms"],
+                feature_dict["Wavelet_4Hz_RESPR_kurtosis"],
+                feature_dict["Wavelet_4Hz_RESPR_skew"],
+            ) = feature_service.get_statistics(data=RESPR_cD_1)
 
-        all_features.append(features)
+            rows.append(feature_dict)
 
-    all_features = np.concatenate(all_features, axis=0)
-    all_labels = np.concatenate(all_labels, axis=0)
+        df = pd.DataFrame(rows)
+        final_dataframe = pd.concat([final_dataframe, df])
 
     if not os.path.exists(EXPORT_PATH):
         os.makedirs(EXPORT_PATH)
 
-    file_to_store = open(EXPORT_PATH / "all_features.pkl", "wb")
-    pickle.dump(all_features, file_to_store)
-    file_to_store.close()
-
-    file_to_store = open(EXPORT_PATH / "all_labels.pkl", "wb")
-    pickle.dump(all_labels, file_to_store)
-    file_to_store.close()
+    final_dataframe.to_csv(EXPORT_PATH / "dataset_with_features.csv", index=False)

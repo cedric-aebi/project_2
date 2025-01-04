@@ -21,7 +21,7 @@ class ArgumentService:
         if collection:
             parser.add_argument("-c", "--collection", required=True, help="One of: centralized, individual, federated")
         if model:
-            parser.add_argument("-m", "--model", required=True, help="One of: dnn, lr, xgboost")
+            parser.add_argument("-m", "--model", required=True, help="One of: shallow-nn, lr, xgboost")
         if features:
             parser.add_argument("-f", "--features", required=True, help="yes or no")
         if resampling:
@@ -30,7 +30,7 @@ class ArgumentService:
                 "--resampling",
                 nargs="+",
                 required=True,
-                help="Space-separated list of resampling methods: smote, smoteenn, tl, oversampling, undersampling, none",
+                help="Space-separated list of resampling methods: smote, smoteenn, tl, oversampling, none",
             )
         if scaling:
             parser.add_argument(
@@ -67,8 +67,8 @@ class ArgumentService:
 
     def get_model(self) -> Model:
         match self.args.model:
-            case "dnn":
-                return Model.DNN
+            case "shallow-nn":
+                return Model.SHALLOW_NN
             case "lr":
                 return Model.LOGISTIC_REGRESSION
             case "xgboost":
@@ -91,9 +91,6 @@ class ArgumentService:
                     break
                 case "oversampling":
                     resampling_methods.append(ResamplingMethod.OVERSAMPLING)
-                    break
-                case "undersampling":
-                    resampling_methods.append(ResamplingMethod.UNDERSAMPLING)
                     break
                 case "none":
                     resampling_methods.append(None)

@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any
-
-import numpy as np
+import pandas as pd
 from imblearn.base import BaseSampler
 from imblearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator
@@ -29,14 +28,14 @@ class AbstractModel(ABC):
         return dict(sorted(self._hyperparameter_grid.items()))
 
     @abstractmethod
-    def fit(self, x_train: np.ndarray, y_train: np.ndarray, run_info: dict) -> None:
+    def fit(self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict) -> None:
         pass
 
     @abstractmethod
-    def predict(self, x: np.ndarray) -> np.ndarray:
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
         pass
 
-    def evaluate(self, pred: np.ndarray, y_true: np.ndarray) -> tuple[dict, np.ndarray]:
+    def evaluate(self, pred: pd.DataFrame, y_true: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
         scores = self.get_scores(pred=pred, y=y_true)
         tp, tn, fp, fn = self.get_classification_results(cm=scores[4])
         results = {
@@ -50,7 +49,7 @@ class AbstractModel(ABC):
         return results, scores[4]
 
     @staticmethod
-    def get_scores(pred: np.ndarray, y: np.ndarray) -> tuple[float, float, float, float, np.ndarray]:
+    def get_scores(pred: pd.DataFrame, y: pd.DataFrame) -> tuple[float, float, float, float, pd.DataFrame]:
         acc = accuracy_score(pred, y)
         rec = recall_score(pred, y)
         prec = precision_score(pred, y)
@@ -59,7 +58,7 @@ class AbstractModel(ABC):
         return acc, rec, prec, f1, cm
 
     @staticmethod
-    def get_classification_results(cm: np.ndarray) -> tuple[int, int, int, int]:
+    def get_classification_results(cm: pd.DataFrame) -> tuple[int, int, int, int]:
         tp = int(cm[1][1])
         tn = int(cm[0][0])
         fp = int(cm[0][1])

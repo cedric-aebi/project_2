@@ -1,12 +1,13 @@
 import json
+import os
+import sys
 from itertools import product
 from pathlib import Path
 
 import joblib
-import pandas as pd
 
 from enums.Model import Model
-from model.DNNModel import DNNModel
+from model.ShallowNNModel import ShallowNNModel
 from model.LogisticRegressionModel import LogisticRegressionModel
 from model.XGBoostModel import XGBoostModel
 from service.argumentservice.ArgumentService import ArgumentService
@@ -14,7 +15,7 @@ from service.datasetservice.DatasetService import DatasetService
 from service.exportservice.ExportService import ExportService
 
 # ************************ DEFINE CONFIGURATION *****************************
-BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "centralized"
+EXPORT_PATH = Path(__file__).parent.parent.parent.parent / "results" / "centralized" / "models"
 # ***************************************************************************
 
 if __name__ == "__main__":
@@ -28,16 +29,8 @@ if __name__ == "__main__":
     dataset_service = DatasetService()
     export_service = ExportService(database=database, collection="centralized")
 
-    x_train_all = dataset_service.load_training_features(which="all", with_features=with_features)
-    x_test_all = dataset_service.load_testing_features(which="all", with_features=with_features)
-    y_train_all = dataset_service.load_training_labels(which="all", with_features=with_features)
-    y_test_all = dataset_service.load_testing_labels(which="all", with_features=with_features)
-
-    x_train_all = pd.concat(x_train_all).to_numpy()
-    y_train_all = pd.concat(y_train_all).to_numpy().ravel()
-
-    x_test_all = pd.concat(x_test_all).to_numpy()
-    y_test_all = pd.concat(y_test_all).to_numpy().ravel()
+    x_all, y_all = dataset_service.get_subject_data(subject="all", with_features=with_features)
+    x_train_all, x_test_all, y_train_all, y_test_all = dataset_service.train_test_split(x=x_all, y=y_all)
 
     # Execute machine learning pipeline for each configured model
     for model_enum, resampling_method, scaling_method in product([model_enum], resampling_methods, scaling_methods):
@@ -50,8 +43,8 @@ if __name__ == "__main__":
                 model = XGBoostModel(scaler=scaler, resampler=resampler)
             case Model.LOGISTIC_REGRESSION:
                 model = LogisticRegressionModel(scaler=scaler, resampler=resampler)
-            case Model.DNN:
-                model = DNNModel(scaler=scaler, resampler=resampler, number_of_features=120 if with_features else 2)
+            case Model.SHALLOW_NN:
+                model = ShallowNNModel(scaler=scaler, resampler=resampler, input_shape=144 if with_features else 2)
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")
 
@@ -84,17 +77,15 @@ if __name__ == "__main__":
         scores_train_all, _ = model.evaluate(pred=pred_train_all, y_true=y_train_all)
         pred_test_all = model.predict(x=x_test_all)
         scores_test_all, cm_all = model.evaluate(pred=pred_test_all, y_true=y_test_all)
+        print(scores_test_all)
+        sys.exit()
         run_info["centralized_scoring"] = {"training_set": scores_train_all, "testing_set": scores_test_all}
 
         # 6. Get training and testing results on individual datasets
         run_info["individual_scoring"] = []
         for subject in range(2, 36):
-            x_train = dataset_service.load_training_features(which=subject, with_features=with_features).to_numpy()
-            x_test = dataset_service.load_testing_features(which=subject, with_features=with_features).to_numpy()
-            y_train = (
-                dataset_service.load_training_labels(which=subject, with_features=with_features).to_numpy().ravel()
-            )
-            y_test = dataset_service.load_testing_labels(which=subject, with_features=with_features).to_numpy().ravel()
+            x, y = dataset_service.get_subject_data(subject=subject, with_features=with_features)
+            x_train, x_test, y_train, y_test = dataset_service.train_test_split(x=x, y=y)
 
             pred_train = model.predict(x=x_train)
             scores_train, _ = model.evaluate(pred=pred_train, y_true=y_train)
@@ -105,7 +96,9 @@ if __name__ == "__main__":
             run_info["individual_scoring"].append(scores)
 
         # 7. Export run configuration and results to mongodb
-        joblib.dump(model, BASE_PATH / "models" / f"{run_id}.joblib", compress=3)
+        if not os.path.exists(EXPORT_PATH):
+            os.makedirs(EXPORT_PATH)
+        joblib.dump(model, EXPORT_PATH / f"{run_id}.joblib", compress=3)
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)
 
         # 8. Cleanup some memory

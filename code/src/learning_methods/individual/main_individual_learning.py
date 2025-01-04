@@ -1,11 +1,12 @@
 import json
+import os
 from itertools import product
 from pathlib import Path
 
 import joblib
 
 from enums.Model import Model
-from model.DNNModel import DNNModel
+from model.ShallowNNModel import ShallowNNModel
 from model.LogisticRegressionModel import LogisticRegressionModel
 from model.XGBoostModel import XGBoostModel
 from service.argumentservice.ArgumentService import ArgumentService
@@ -13,7 +14,7 @@ from service.datasetservice.DatasetService import DatasetService
 from service.exportservice.ExportService import ExportService
 
 # ************************ DEFINE CONFIGURATION *****************************
-BASE_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individual"
+EXPORT_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individual" / "models"
 # ***************************************************************************
 
 if __name__ == "__main__":
@@ -35,8 +36,8 @@ if __name__ == "__main__":
                 dummy_model = XGBoostModel(scaler=None, resampler=None)
             case Model.LOGISTIC_REGRESSION:
                 dummy_model = LogisticRegressionModel(scaler=None, resampler=None)
-            case Model.DNN:
-                dummy_model = DNNModel(scaler=None, resampler=None, number_of_features=120 if with_features else 2)
+            case Model.SHALLOW_NN:
+                dummy_model = ShallowNNModel(scaler=None, resampler=None, input_shape=144 if with_features else 2)
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")
 
@@ -68,12 +69,8 @@ if __name__ == "__main__":
         for idx, subject in enumerate(range(2, 36)):
             run_info["subjects"].append({"subject": subject})
 
-            x_train = dataset_service.load_training_features(which=subject, with_features=with_features).to_numpy()
-            x_test = dataset_service.load_testing_features(which=subject, with_features=with_features).to_numpy()
-            y_train = (
-                dataset_service.load_training_labels(which=subject, with_features=with_features).to_numpy().ravel()
-            )
-            y_test = dataset_service.load_testing_labels(which=subject, with_features=with_features).to_numpy().ravel()
+            x, y = dataset_service.get_subject_data(subject=subject, with_features=with_features)
+            x_train, x_test, y_train, y_test = dataset_service.train_test_split(x=x, y=y)
 
             scaler = dataset_service.get_scaler(method=scaling_method)
             resampler = dataset_service.get_resampler(method=resampling_method)
@@ -83,8 +80,8 @@ if __name__ == "__main__":
                     model = XGBoostModel(scaler=scaler, resampler=resampler)
                 case Model.LOGISTIC_REGRESSION:
                     model = LogisticRegressionModel(scaler=scaler, resampler=resampler)
-                case Model.DNN:
-                    model = DNNModel(scaler=scaler, resampler=resampler, number_of_features=120 if with_features else 2)
+                case Model.SHALLOW_NN:
+                    model = ShallowNNModel(scaler=scaler, resampler=resampler, input_shape=144 if with_features else 2)
                 case _:
                     raise Exception(f"Could not initialize model {model_enum.value} for config")
 
@@ -94,10 +91,12 @@ if __name__ == "__main__":
             scores_train, _ = model.evaluate(pred=pred_train, y_true=y_train)
             pred_test = model.predict(x=x_test)
             scores_test, _ = model.evaluate(pred=pred_test, y_true=y_test)
-
             scores = {"training_set": scores_train, "testing_set": scores_test}
             run_info["subjects"][idx]["scores"] = scores
-            joblib.dump(model, BASE_PATH / "models" / f"{run_id}.joblib", compress=3)
+
+            if not os.path.exists(EXPORT_PATH):
+                os.makedirs(EXPORT_PATH)
+            joblib.dump(model, EXPORT_PATH / f"{run_id}.joblib", compress=3)
 
         # Export run configuration and results to mongodb
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)

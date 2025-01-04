@@ -1,11 +1,10 @@
-import pickle
 from pathlib import Path
 
 import pandas as pd
 from imblearn.base import BaseSampler
 from imblearn.combine import SMOTEENN
 from imblearn.over_sampling import RandomOverSampler, SMOTE
-from imblearn.under_sampling import TomekLinks, RandomUnderSampler
+from imblearn.under_sampling import TomekLinks
 from sklearn.base import BaseEstimator
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -18,80 +17,27 @@ class DatasetService:
     def __init__(self):
         self.__path_to_datasets = Path(__file__).parent.parent.parent.parent / "dataset"
         self.__label_column = "Label"
-        self.__labels = ["No Stress", "Stress"]
-        self.__not_needed_columns = [self.__label_column, "Time(sec)", "Participant"]
 
-    def load_training_features(self, which: str | int, with_features: bool) -> pd.DataFrame:
+    def get_subject_data(self, subject: str | int, with_features: bool) -> tuple[pd.DataFrame, pd.DataFrame]:
         if with_features:
-            base = self.__path_to_datasets / "with_additional_features" / "features"
+            df = pd.read_csv(self.__path_to_datasets / "dataset_with_features.csv", sep=",")
+            if subject != "all":
+                df = df[df["Subject"] == subject]
+            df = df.fillna(0)
+            x = df.drop(columns=[self.__label_column, "Subject"])
+            y = df[self.__label_column]
+            return x, y
         else:
-            base = self.__path_to_datasets / "no_additional_features" / "features"
-        if which == "all":
-            file_to_read = open(base / "all_training_features.pkl", "rb")
-            x_train = pickle.load(file_to_read)
-            file_to_read.close()
-        else:
-            file_to_read = open(base / f"training_features_{which}.pkl", "rb")
-            x_train = pickle.load(file_to_read)
-            file_to_read.close()
-        return x_train
+            df = pd.read_csv(self.__path_to_datasets / "Improved_All_Combined_hr_rsp_binary.csv", sep=",")
+            if subject != "all":
+                df = df[df["Participant"] == subject]
+            df = df.ffill().bfill()
+            x = df.drop(columns=[self.__label_column, "Participant", "Time(sec)"])
+            y = df[self.__label_column]
+            return x, y
 
-    def load_testing_features(self, which: str | int, with_features: bool) -> pd.DataFrame:
-        if with_features:
-            base = self.__path_to_datasets / "with_additional_features" / "features"
-        else:
-            base = self.__path_to_datasets / "no_additional_features" / "features"
-        if which == "all":
-            file_to_read = open(base / "all_testing_features.pkl", "rb")
-            x_train = pickle.load(file_to_read)
-            file_to_read.close()
-        else:
-            file_to_read = open(base / f"testing_features_{which}.pkl", "rb")
-            x_train = pickle.load(file_to_read)
-            file_to_read.close()
-        return x_train
-
-    def load_training_labels(self, which: str | int, with_features: bool) -> pd.DataFrame:
-        if with_features:
-            base = self.__path_to_datasets / "with_additional_features" / "features"
-        else:
-            base = self.__path_to_datasets / "no_additional_features" / "features"
-        if which == "all":
-            file_to_read = open(base / "all_training_labels.pkl", "rb")
-            x_train = pickle.load(file_to_read)
-            file_to_read.close()
-        else:
-            file_to_read = open(base / f"training_labels_{which}.pkl", "rb")
-            x_train = pickle.load(file_to_read)
-            file_to_read.close()
-        return x_train
-
-    def load_testing_labels(self, which: str | int, with_features: bool) -> pd.DataFrame:
-        if with_features:
-            base = self.__path_to_datasets / "with_additional_features" / "features"
-        else:
-            base = self.__path_to_datasets / "no_additional_features" / "features"
-        if which == "all":
-            file_to_read = open(base / "all_testing_labels.pkl", "rb")
-            x_train = pickle.load(file_to_read)
-            file_to_read.close()
-        else:
-            file_to_read = open(base / f"testing_labels_{which}.pkl", "rb")
-            x_train = pickle.load(file_to_read)
-            file_to_read.close()
-        return x_train
-
-    def load_dataset(self) -> pd.DataFrame:
+    def load_original_dataset(self) -> pd.DataFrame:
         return pd.read_csv(self.__path_to_datasets / "Improved_All_Combined_hr_rsp_binary.csv", sep=",")
-
-    @staticmethod
-    def remove_nan(dataset: pd.DataFrame) -> pd.DataFrame:
-        return dataset.dropna()
-
-    def get_features_and_labels(self, dataset: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
-        x = dataset.drop(columns=self.__not_needed_columns)
-        y = dataset[self.__label_column].to_frame()
-        return x, y, self.__labels
 
     @staticmethod
     def get_resampler(method: ResamplingMethod | None) -> BaseSampler | None:
@@ -100,8 +46,6 @@ class DatasetService:
                 resampler = SMOTE(random_state=42)
             case ResamplingMethod.OVERSAMPLING:
                 resampler = RandomOverSampler(random_state=42)
-            case ResamplingMethod.UNDERSAMPLING:
-                resampler = RandomUnderSampler(random_state=42)
             case ResamplingMethod.TL:
                 resampler = TomekLinks()
             case ResamplingMethod.SMOTEENN:
@@ -128,7 +72,7 @@ class DatasetService:
 
     @staticmethod
     def train_test_split(
-        x: pd.DataFrame, y: pd.DataFrame, shuffle: bool
+        x: pd.DataFrame, y: pd.DataFrame, shuffle: bool = True
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         split_ratio = 0.2
         train_x, test_x, train_y, test_y = train_test_split(

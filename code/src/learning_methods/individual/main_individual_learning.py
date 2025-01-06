@@ -98,5 +98,7 @@ if __name__ == "__main__":
                 os.makedirs(EXPORT_PATH)
             joblib.dump(model, EXPORT_PATH / f"{run_id}_subject_{subject}.joblib", compress=3)
 
+            del y, x, scaler, resampler, model, x_train, x_test, y_train, y_test
+
         # Export run configuration and results to mongodb
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)

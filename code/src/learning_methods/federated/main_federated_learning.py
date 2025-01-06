@@ -6,8 +6,8 @@ from learning_methods.federated.xgboost_.client import Client as XGBoostClient
 from learning_methods.federated.xgboost_.server import Server as XGBoostServer
 from learning_methods.federated.logistic_regression.client import Client as LogisticRegressionClient
 from learning_methods.federated.logistic_regression.server import Server as LogisticRegressionServer
-from learning_methods.federated.dnn.client import Client as DNNClient
-from learning_methods.federated.dnn.server import Server as DNNServer
+from learning_methods.federated.shallow_nn.client import Client as DNNClient
+from learning_methods.federated.shallow_nn.server import Server as DNNServer
 
 if __name__ == "__main__":
     MODEL = Model.LOGISTIC_REGRESSION

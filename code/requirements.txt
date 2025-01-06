@@ -1,5 +1,5 @@
 biosppy==2.2.2
-flwr==1.14.0
+flwr[simulation]==1.14.0
 imbalanced-learn==0.12.4
 matplotlib==3.9.3
 numpy==1.26.4

@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
             if not os.path.exists(EXPORT_PATH):
                 os.makedirs(EXPORT_PATH)
-            joblib.dump(model, EXPORT_PATH / f"{run_id}.joblib", compress=3)
+            joblib.dump(model, EXPORT_PATH / f"{run_id}_subject_{subject}.joblib", compress=3)
 
         # Export run configuration and results to mongodb
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)

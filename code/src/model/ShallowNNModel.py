@@ -1,3 +1,4 @@
+import gc
 import os
 import warnings
 
@@ -8,12 +9,20 @@ from imblearn.pipeline import Pipeline
 import pandas as pd
 import keras
 import tensorflow as tf
+from keras.src.backend.common.global_state import clear_session
+from keras.src.callbacks import Callback
 from imblearn.base import BaseSampler
 from scikeras.wrappers import KerasClassifier
 from sklearn.base import BaseEstimator
 from sklearn.model_selection import GridSearchCV
 
 from model.AbstractModel import AbstractModel
+
+
+class ClearMemory(Callback):
+    def on_epoch_end(self, epoch, logs=None):
+        gc.collect()
+        clear_session()
 
 
 class ShallowNNModel(AbstractModel):
@@ -29,6 +38,7 @@ class ShallowNNModel(AbstractModel):
             "clf__model__regularization": [False],  # True for regularization
         }
         early_stopping_callback = keras.callbacks.EarlyStopping(patience=7, monitor="val_loss")
+        clear_memory_callback = ClearMemory()
         clf = KerasClassifier(
             model=self._build_model,
             model__input_shape=input_shape,
@@ -37,7 +47,8 @@ class ShallowNNModel(AbstractModel):
             verbose=False,
             random_state=42,
             validation_split=0.2,
-            callbacks=[early_stopping_callback],
+            run_eagerly=True,
+            callbacks=[early_stopping_callback, clear_memory_callback],
         )
         super().__init__(clf=clf, hyperparameter_grid=hyperparameter_grid, scaler=scaler, resampler=resampler)
 

@@ -1,13 +1,9 @@
-import gc
 import json
 import os
 from itertools import product
 from pathlib import Path
 
 import joblib
-from keras.src.backend.common.global_state import clear_session
-from tensorflow.compat.v1 import ConfigProto, Session
-from tensorflow.python.keras.backend import get_session, set_session
 
 from enums.Model import Model
 from model.ShallowNNModel import ShallowNNModel
@@ -20,28 +16,6 @@ from service.exportservice.ExportService import ExportService
 # ************************ DEFINE CONFIGURATION *****************************
 EXPORT_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individual" / "models"
 # ***************************************************************************
-
-# Global model
-model = None
-
-
-# Reset Keras Session
-def reset_keras():
-    sess = get_session()
-    clear_session()
-    sess.close()
-    sess = get_session()
-
-    try:
-        del model  # this is from global space - change this as you need
-    except:
-        pass
-
-    print(gc.collect())  # if it's done something you should see a number being outputted
-
-    # use the same config as you used to create the session
-    config = ConfigProto()
-    set_session(Session(config=config))
 
 
 if __name__ == "__main__":
@@ -94,8 +68,6 @@ if __name__ == "__main__":
 
         # 5. Fit models
         for idx, subject in enumerate(range(2, 36)):
-            reset_keras()
-
             run_info["subjects"].append({"subject": subject})
 
             x, y = dataset_service.get_subject_data(subject=subject, with_features=with_features)
@@ -128,7 +100,7 @@ if __name__ == "__main__":
             joblib.dump(model, EXPORT_PATH / f"{run_id}_subject_{subject}.joblib", compress=3)
 
             # Free up memory and garbage collect
-            del y, x, scaler, resampler, x_train, x_test, y_train, y_test
+            del y, x, scaler, resampler, x_train, x_test, y_train, y_test, model
 
         # Export run configuration and results to mongodb
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)

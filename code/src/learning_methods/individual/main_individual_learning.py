@@ -5,6 +5,9 @@ from itertools import product
 from pathlib import Path
 
 import joblib
+from keras.src.backend.common.global_state import clear_session
+from tensorflow.compat.v1 import ConfigProto, Session
+from tensorflow.python.keras.backend import get_session, set_session
 
 from enums.Model import Model
 from model.ShallowNNModel import ShallowNNModel
@@ -18,8 +21,30 @@ from service.exportservice.ExportService import ExportService
 EXPORT_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individual" / "models"
 # ***************************************************************************
 
+# Global model
+model = None
+
+
+# Reset Keras Session
+def reset_keras():
+    sess = get_session()
+    clear_session()
+    sess.close()
+    sess = get_session()
+
+    try:
+        del model  # this is from global space - change this as you need
+    except:
+        pass
+
+    print(gc.collect())  # if it's done something you should see a number being outputted
+
+    # use the same config as you used to create the session
+    config = ConfigProto()
+    set_session(Session(config=config))
+
+
 if __name__ == "__main__":
-    gc.enable()
     arg_service = ArgumentService(model=True, resampling=True, scaling=True, database=True, features=True)
     model_enum = arg_service.get_model()
     resampling_methods = arg_service.get_resampling_methods()
@@ -35,11 +60,11 @@ if __name__ == "__main__":
         # 1. Initialize dummy model for hash calculation
         match model_enum:
             case Model.XGBOOST:
-                dummy_model = XGBoostModel(scaler=None, resampler=None)
+                model = XGBoostModel(scaler=None, resampler=None)
             case Model.LOGISTIC_REGRESSION:
-                dummy_model = LogisticRegressionModel(scaler=None, resampler=None)
+                model = LogisticRegressionModel(scaler=None, resampler=None)
             case Model.SHALLOW_NN:
-                dummy_model = ShallowNNModel(scaler=None, resampler=None, input_shape=144 if with_features else 2)
+                model = ShallowNNModel(scaler=None, resampler=None, input_shape=144 if with_features else 2)
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")
 
@@ -52,7 +77,7 @@ if __name__ == "__main__":
                 "scaling": {"method": scaling_method.value if scaling_method is not None else None},
             },
             "subjects": [],
-            "hyperparameters": dummy_model.get_hyperparameter_grid(),
+            "hyperparameters": model.get_hyperparameter_grid(),
         }
 
         # 3. Create a has over the run_info dict and the current database and check if run already exists
@@ -69,6 +94,8 @@ if __name__ == "__main__":
 
         # 5. Fit models
         for idx, subject in enumerate(range(2, 36)):
+            reset_keras()
+
             run_info["subjects"].append({"subject": subject})
 
             x, y = dataset_service.get_subject_data(subject=subject, with_features=with_features)
@@ -101,8 +128,7 @@ if __name__ == "__main__":
             joblib.dump(model, EXPORT_PATH / f"{run_id}_subject_{subject}.joblib", compress=3)
 
             # Free up memory and garbage collect
-            del y, x, scaler, resampler, model, x_train, x_test, y_train, y_test
-            gc.collect()
+            del y, x, scaler, resampler, x_train, x_test, y_train, y_test
 
         # Export run configuration and results to mongodb
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)

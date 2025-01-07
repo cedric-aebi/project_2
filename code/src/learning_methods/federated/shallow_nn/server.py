@@ -21,8 +21,8 @@ def server_fn(context: Context):
     # Let's define the global model and pass it to the strategy
     parameters = ndarrays_to_parameters(
         load_model(
-            dropout=0.5,
-            batch_normalization=True,
+            dropout=None,
+            batch_normalization=False,
             regularization=False,
             learning_rate=0.001,
             optimizer="adam",

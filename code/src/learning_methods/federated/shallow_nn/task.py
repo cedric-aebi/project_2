@@ -22,7 +22,6 @@ def load_model(
     # Define the model
     model = keras.Sequential()
     model.add(keras.layers.Input(shape=(input_shape,)))
-
     model.add(keras.layers.Dense(512, activation="relu", kernel_regularizer="l1_l2" if regularization else None))
     if dropout is not None:
         model.add(keras.layers.Dropout(dropout))

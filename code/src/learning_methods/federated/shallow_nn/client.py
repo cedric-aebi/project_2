@@ -18,8 +18,8 @@ class FlowerClient(NumPyClient):
         self.model = load_model(
             learning_rate=learning_rate,
             input_shape=144,
-            dropout=0.5,
-            batch_normalization=True,
+            dropout=None,
+            batch_normalization=False,
             regularization=False,
             optimizer="adam",
         )

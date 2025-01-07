@@ -1,4 +1,3 @@
-from copy import deepcopy
 from pathlib import Path
 
 import pandas as pd
@@ -25,7 +24,7 @@ class DatasetService:
 
     def get_subject_data(self, subject: str | int, with_features: bool) -> tuple[pd.DataFrame, pd.DataFrame]:
         if with_features:
-            df = deepcopy(self.__dataset_with_features)
+            df = self.__dataset_with_features
             if subject != "all":
                 df = df[df["Subject"] == subject]
             df = df.fillna(0)
@@ -33,7 +32,7 @@ class DatasetService:
             y = df[self.__label_column]
             return x, y
         else:
-            df = deepcopy(self.__dataset_without_features)
+            df = self.__dataset_without_features
             if subject != "all":
                 df = df[df["Participant"] == subject]
             df = df.ffill().bfill()

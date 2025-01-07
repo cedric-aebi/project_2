@@ -1,3 +1,4 @@
+import gc
 import json
 import os
 from itertools import product
@@ -18,6 +19,7 @@ EXPORT_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individu
 # ***************************************************************************
 
 if __name__ == "__main__":
+    gc.enable()
     arg_service = ArgumentService(model=True, resampling=True, scaling=True, database=True, features=True)
     model_enum = arg_service.get_model()
     resampling_methods = arg_service.get_resampling_methods()
@@ -98,7 +100,9 @@ if __name__ == "__main__":
                 os.makedirs(EXPORT_PATH)
             joblib.dump(model, EXPORT_PATH / f"{run_id}_subject_{subject}.joblib", compress=3)
 
+            # Free up memory and garbage collect
             del y, x, scaler, resampler, model, x_train, x_test, y_train, y_test
+            gc.collect()
 
         # Export run configuration and results to mongodb
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)

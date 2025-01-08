@@ -1,3 +1,4 @@
+import keras
 from flwr.client import ClientApp, NumPyClient
 from flwr.common import Context
 from sklearn.metrics import f1_score
@@ -13,15 +14,19 @@ class FlowerClient(NumPyClient):
         data,
         epochs,
         batch_size,
+        optimizer,
+        regularization,
+        batch_normalization,
+        dropout,
         verbose,
     ):
         self.model = load_model(
             learning_rate=learning_rate,
             input_shape=144,
-            dropout=None,
-            batch_normalization=False,
-            regularization=False,
-            optimizer="adam",
+            dropout=dropout,
+            batch_normalization=batch_normalization,
+            regularization=regularization,
+            optimizer=optimizer,
         )
         self.x_train, self.x_test, self.y_train, self.y_test = data
         self.epochs = epochs
@@ -37,6 +42,8 @@ class FlowerClient(NumPyClient):
             epochs=self.epochs,
             batch_size=self.batch_size,
             verbose=self.verbose,
+            validation_split=0.2,
+            callbacks=[keras.callbacks.EarlyStopping(patience=7, monitor="val_loss")],
         )
         return self.model.get_weights(), len(self.x_train), {}
 
@@ -46,11 +53,15 @@ class FlowerClient(NumPyClient):
         loss, accuracy = self.model.evaluate(self.x_test, self.y_test, verbose=0)
         y_pred = self.model.predict(self.x_test)
         f1 = f1_score(y_true=self.y_test, y_pred=y_pred > 0.5)
+
         return loss, len(self.x_test), {"f1": f1}
 
 
 def client_fn(context: Context):
     """Construct a Client that will be run in a ClientApp."""
+
+    # Ensure a new session is started
+    keras.backend.clear_session()
 
     # Read the node_config to fetch data partition associated to this node
     partition_id = context.node_config["partition-id"] + 2
@@ -58,12 +69,18 @@ def client_fn(context: Context):
 
     # Read run_config to fetch hyperparameters relevant to this run
     epochs = context.run_config["local-epochs"]
+    regularization = context.run_config["regularization"]
     batch_size = context.run_config["batch-size"]
     verbose = context.run_config.get("verbose")
     learning_rate = context.run_config["learning-rate"]
+    optimizer = context.run_config["optimizer"]
+    batch_normalization = context.run_config["batch-normalization"]
+    dropout = None if context.run_config["dropout"] == False else context.run_config["dropout"]
 
     # Return Client instance
-    return FlowerClient(learning_rate, data, epochs, batch_size, verbose).to_client()
+    return FlowerClient(
+        learning_rate, data, epochs, batch_size, optimizer, regularization, batch_normalization, dropout, verbose
+    ).to_client()
 
 
 # Flower ClientApp

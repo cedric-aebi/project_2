@@ -8,6 +8,7 @@ os.environ["PYTHONWARNINGS"] = "ignore::FutureWarning"
 from imblearn.pipeline import Pipeline
 import pandas as pd
 import keras
+from keras.src.regularizers import L1L2
 import tensorflow as tf
 from keras.src.backend.common.global_state import clear_session
 from keras.src.callbacks import Callback
@@ -54,7 +55,7 @@ class ShallowNNModel(AbstractModel):
 
     def fit(self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict) -> None:
         self._grid_search_cv = GridSearchCV(
-            estimator=self._pipeline, param_grid=self._hyperparameter_grid, cv=self._cv, n_jobs=-1, verbose=2
+            estimator=self._pipeline, param_grid=self._hyperparameter_grid, cv=self._cv, n_jobs=16, verbose=2
         )
         self._grid_search_cv.fit(x_train, y_train)
         self._best_estimator = self._grid_search_cv.best_estimator_
@@ -76,27 +77,27 @@ class ShallowNNModel(AbstractModel):
         model = keras.Sequential()
         model.add(keras.layers.Input(shape=(input_shape,)))
 
-        model.add(keras.layers.Dense(512, activation="relu", kernel_regularizer="l1_l2" if regularization else None))
+        model.add(keras.layers.Dense(512, activation="relu", kernel_regularizer=L1L2() if regularization else None))
         if dropout is not None:
             model.add(keras.layers.Dropout(dropout))
         if batch_normalization:
             model.add(keras.layers.BatchNormalization())
-        model.add(keras.layers.Dense(256, activation="relu", kernel_regularizer="l1_l2" if regularization else None))
+        model.add(keras.layers.Dense(256, activation="relu", kernel_regularizer=L1L2() if regularization else None))
         if dropout is not None:
             model.add(keras.layers.Dropout(dropout))
         if batch_normalization:
             model.add(keras.layers.BatchNormalization())
-        model.add(keras.layers.Dense(128, activation="relu", kernel_regularizer="l1_l2" if regularization else None))
+        model.add(keras.layers.Dense(128, activation="relu", kernel_regularizer=L1L2() if regularization else None))
         if dropout is not None:
             model.add(keras.layers.Dropout(dropout))
         if batch_normalization:
             model.add(keras.layers.BatchNormalization())
-        model.add(keras.layers.Dense(64, activation="relu", kernel_regularizer="l1_l2" if regularization else None))
+        model.add(keras.layers.Dense(64, activation="relu", kernel_regularizer=L1L2() if regularization else None))
         if dropout is not None:
             model.add(keras.layers.Dropout(dropout))
         if batch_normalization:
             model.add(keras.layers.BatchNormalization())
-        model.add(keras.layers.Dense(32, activation="relu", kernel_regularizer="l1_l2" if regularization else None))
+        model.add(keras.layers.Dense(32, activation="relu", kernel_regularizer=L1L2() if regularization else None))
         if dropout is not None:
             model.add(keras.layers.Dropout(dropout))
         if batch_normalization:

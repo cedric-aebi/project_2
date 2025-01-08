@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from itertools import product
 from pathlib import Path
 
@@ -104,3 +105,6 @@ if __name__ == "__main__":
 
         # Export run configuration and results to mongodb
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)
+
+        # Restart the script to free up memory
+        os.execv(sys.executable, ["python"] + sys.argv)

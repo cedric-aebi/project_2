@@ -82,12 +82,11 @@ def server_fn(context: Context):
     x_train, x_test, y_train, y_test = load_data(subject="all")
 
     # Define the strategy
-    strategy = FedProx(
+    strategy = FedAvg(
         fraction_fit=context.run_config["fraction-fit"],
         fraction_evaluate=1.0,
         min_available_clients=34,
         initial_parameters=parameters,
-        proximal_mu=1,
         evaluate_fn=gen_evaluate_fn(
             x_test=x_test,
             y_test=y_test,
@@ -98,7 +97,7 @@ def server_fn(context: Context):
             optimizer=optimizer,
             input_shape=144,
         ),
-        evaluate_metrics_aggregation_fn=weighted_average,
+        evaluate_metrics_aggregation_fn=average,
     )
     # Read from config
     num_rounds = context.run_config["num-server-rounds"]

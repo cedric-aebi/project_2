@@ -78,7 +78,7 @@ def load_data(subject: int | str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFr
     # x_test = scaler.transform(x_test)
 
     # Resample the data
-    resampler = SMOTEENN(random_state=42)
-    x_train, y_train = resampler.fit_resample(X=x_train, y=y_train)
+    # resampler = SMOTEENN(random_state=42)
+    # x_train, y_train = resampler.fit_resample(X=x_train, y=y_train)
 
     return x_train, x_test, y_train, y_test

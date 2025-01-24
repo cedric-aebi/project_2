@@ -14,7 +14,7 @@ clientapp = "client:app"
 
 [tool.flwr.app.config]
 num-server-rounds = 30
-local-epochs = 2
+local-epochs = 3
 batch-size = 32
 learning-rate = 0.001
 fraction-fit = 1

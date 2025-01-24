@@ -5,7 +5,7 @@ from imblearn.base import BaseSampler
 from imblearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, KFold
 
 
 class AbstractModel(ABC):
@@ -16,7 +16,7 @@ class AbstractModel(ABC):
         resampler: BaseSampler | None,
         hyperparameter_grid: dict | None = None,
     ) -> None:
-        self._cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+        self._cv = KFold(n_splits=5, shuffle=True, random_state=42)
         self._clf = clf
         self._hyperparameter_grid = hyperparameter_grid
         self._scaler = scaler

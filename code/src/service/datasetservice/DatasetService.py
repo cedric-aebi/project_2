@@ -76,10 +76,10 @@ class DatasetService:
 
     @staticmethod
     def train_test_split(
-        x: pd.DataFrame, y: pd.DataFrame, shuffle: bool = True
+        x: pd.DataFrame, y: pd.DataFrame, shuffle: bool = True, random_state: int | None = 42
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         split_ratio = 0.2
         train_x, test_x, train_y, test_y = train_test_split(
-            x, y, test_size=split_ratio, shuffle=shuffle, random_state=42, stratify=y
+            x, y, test_size=split_ratio, shuffle=shuffle, random_state=random_state
         )
         return train_x, test_x, train_y, test_y

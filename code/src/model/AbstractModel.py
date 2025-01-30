@@ -16,7 +16,7 @@ class AbstractModel(ABC):
         resampler: BaseSampler | None,
         hyperparameter_grid: dict | None = None,
     ) -> None:
-        self._cv = KFold(n_splits=5, shuffle=True, random_state=42)
+        self._cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
         self._clf = clf
         self._hyperparameter_grid = hyperparameter_grid
         self._scaler = scaler

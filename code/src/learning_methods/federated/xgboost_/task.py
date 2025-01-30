@@ -4,7 +4,6 @@ from logging import INFO
 import pandas as pd
 from flwr.common import log
 import xgboost as xgb
-from imblearn.combine import SMOTEENN
 
 from service.datasetservice.DatasetService import DatasetService
 
@@ -13,26 +12,10 @@ dataset_service = DatasetService()
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
-def load_data(subject: int | str, centralised_eval_client: bool) -> tuple[xgb.DMatrix, xgb.DMatrix, int, int]:
-    if centralised_eval_client:
-        # Train/test splitting
-        x_all, y_all = dataset_service.get_subject_data(subject="all", with_features=True)
-        x_train_all, x_test_all, y_train_all, y_test_all = dataset_service.train_test_split(x=x_all, y=y_all)
-        x, y = dataset_service.get_subject_data(subject=subject, with_features=True)
-        x_train, x_test, y_train, y_test = dataset_service.train_test_split(x=x, y=y)
-
-        x_train = x_train
-        x_test = x_test_all
-        y_train = y_train
-        y_test = y_test_all
-    else:
-        # Train/test splitting
-        x, y = dataset_service.get_subject_data(subject=subject, with_features=True)
-        x_train, x_test, y_train, y_test = dataset_service.train_test_split(x=x, y=y)
-
-    # Resample the data
-    resampler = SMOTEENN(random_state=42)
-    x_train, y_train = resampler.fit_resample(X=x_train, y=y_train)
+def load_data(subject: int | str) -> tuple[xgb.DMatrix, xgb.DMatrix, int, int]:
+    # Train/test splitting
+    x, y = dataset_service.get_subject_data(subject=subject, with_features=True)
+    x_train, x_test, y_train, y_test = dataset_service.train_test_split(x=x, y=y)
 
     num_train = len(x_train)
     num_test = len(x_test)

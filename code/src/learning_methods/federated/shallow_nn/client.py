@@ -35,6 +35,8 @@ class FlowerClient(NumPyClient):
 
     def fit(self, parameters, config):
         """Train the model with data of this client."""
+        early_stopping_callback = keras.callbacks.EarlyStopping(patience=10, monitor="val_loss", min_delta=0.001)
+        reduce_lr_callback = keras.callbacks.ReduceLROnPlateau(patience=7, monitor="val_loss", factor=0.2)
         self.model.set_weights(parameters)
         self.model.fit(
             self.x_train,
@@ -43,7 +45,7 @@ class FlowerClient(NumPyClient):
             batch_size=self.batch_size,
             verbose=self.verbose,
             validation_split=0.2,
-            callbacks=[keras.callbacks.EarlyStopping(patience=7, monitor="val_loss")],
+            callbacks=[early_stopping_callback, reduce_lr_callback],
         )
         return self.model.get_weights(), len(self.x_train), {}
 

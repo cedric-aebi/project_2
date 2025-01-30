@@ -3,7 +3,7 @@ import pandas as pd
 from flwr.common import Context, Metrics
 from flwr.common import ndarrays_to_parameters
 from flwr.server import ServerConfig, ServerApp, ServerAppComponents
-from flwr.server.strategy import FedAvg, FedProx
+from flwr.server.strategy import FedAvg, FedProx, FedAdam
 from sklearn.metrics import f1_score
 
 from task import load_model, load_data
@@ -82,7 +82,8 @@ def server_fn(context: Context):
     x_train, x_test, y_train, y_test = load_data(subject="all")
 
     # Define the strategy
-    strategy = FedAvg(
+    strategy = FedProx(
+        proximal_mu=1,
         fraction_fit=context.run_config["fraction-fit"],
         fraction_evaluate=1.0,
         min_available_clients=34,

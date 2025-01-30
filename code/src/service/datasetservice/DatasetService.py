@@ -80,6 +80,6 @@ class DatasetService:
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         split_ratio = 0.2
         train_x, test_x, train_y, test_y = train_test_split(
-            x, y, test_size=split_ratio, shuffle=shuffle, random_state=random_state
+            x, y, test_size=split_ratio, shuffle=shuffle, random_state=random_state, stratify=y
         )
         return train_x, test_x, train_y, test_y

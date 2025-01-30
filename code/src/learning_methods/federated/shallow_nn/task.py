@@ -4,6 +4,7 @@ import warnings
 import keras
 import pandas as pd
 from imblearn.combine import SMOTEENN
+from imblearn.over_sampling import RandomOverSampler
 from keras.src.regularizers import L1L2
 from sklearn.preprocessing import StandardScaler
 
@@ -24,37 +25,41 @@ def load_model(
     # Define the model
     model = keras.Sequential()
     model.add(keras.layers.Input(shape=(input_shape,)))
-    model.add(keras.layers.Dense(512, activation="relu", kernel_regularizer=L1L2() if regularization else None))
+
+    model.add(keras.layers.Dense(512, kernel_regularizer=L1L2() if regularization else None))
+    model.add(keras.layers.LeakyReLU())
     if dropout is not None:
         model.add(keras.layers.Dropout(dropout))
     if batch_normalization:
         model.add(keras.layers.BatchNormalization())
-    model.add(keras.layers.Dense(256, activation="relu", kernel_regularizer=L1L2() if regularization else None))
+    model.add(keras.layers.Dense(256, kernel_regularizer=L1L2() if regularization else None))
+    model.add(keras.layers.LeakyReLU())
     if dropout is not None:
         model.add(keras.layers.Dropout(dropout))
     if batch_normalization:
         model.add(keras.layers.BatchNormalization())
-    model.add(keras.layers.Dense(128, activation="relu", kernel_regularizer=L1L2() if regularization else None))
+    model.add(keras.layers.Dense(128, kernel_regularizer=L1L2() if regularization else None))
+    model.add(keras.layers.LeakyReLU())
     if dropout is not None:
         model.add(keras.layers.Dropout(dropout))
     if batch_normalization:
         model.add(keras.layers.BatchNormalization())
-    model.add(keras.layers.Dense(64, activation="relu", kernel_regularizer=L1L2() if regularization else None))
+    model.add(keras.layers.Dense(64, kernel_regularizer=L1L2() if regularization else None))
+    model.add(keras.layers.LeakyReLU())
     if dropout is not None:
         model.add(keras.layers.Dropout(dropout))
     if batch_normalization:
         model.add(keras.layers.BatchNormalization())
-    model.add(keras.layers.Dense(32, activation="relu", kernel_regularizer=L1L2() if regularization else None))
-    if dropout is not None:
-        model.add(keras.layers.Dropout(dropout))
-    if batch_normalization:
-        model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.Dense(50, kernel_regularizer=L1L2() if regularization else None))
+    model.add(keras.layers.LeakyReLU())
 
     # Output layer with 1 neuron, sigmoid activation for binary classification
     model.add(keras.layers.Dense(1, activation="sigmoid"))
 
     if optimizer == "adam":
         optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
+    elif optimizer == "nadam":
+        optimizer = keras.optimizers.Nadam(learning_rate=learning_rate)
     elif optimizer == "sgd":
         optimizer = keras.optimizers.SGD(learning_rate=learning_rate)
     else:
@@ -78,7 +83,7 @@ def load_data(subject: int | str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFr
     # x_test = scaler.transform(x_test)
 
     # Resample the data
-    # resampler = SMOTEENN(random_state=42)
+    # resampler = RandomOverSampler(random_state=42)
     # x_train, y_train = resampler.fit_resample(X=x_train, y=y_train)
 
     return x_train, x_test, y_train, y_test

@@ -18,15 +18,10 @@ class XGBoostModel(AbstractModel):
     def __init__(self, scaler: BaseEstimator | None, resampler: BaseSampler | None):
         self._grid_search_cv = None
         hyperparameter_grid = {
-            "clf__n_estimators": [10, 50, 100, 200, 300, 400],
-            "clf__subsample": [0.8, 1.0],
-            "clf__colsample_bytree": [0.8, 1.0],
-            "clf__max_depth": [2, 4, 6, 8, 10],
-            "clf__reg_alpha": [0],  # 0.1, 1 and 10 for L1 regularization
-            "clf__reg_lambda": [0],  # 0.1, 1 and 10 for L2 regularization
+            "clf__max_depth": [4, 6, 8],
         }
         super().__init__(
-            clf=XGBClassifier(random_state=42, device="cpu"),
+            clf=XGBClassifier(random_state=42),
             hyperparameter_grid=hyperparameter_grid,
             scaler=scaler,
             resampler=resampler,

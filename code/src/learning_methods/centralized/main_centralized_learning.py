@@ -95,7 +95,8 @@ if __name__ == "__main__":
         # 7. Export run configuration and results to mongodb
         if not os.path.exists(EXPORT_PATH):
             os.makedirs(EXPORT_PATH)
-        joblib.dump(model, EXPORT_PATH / f"{run_id}.joblib", compress=3)
+        if not isinstance(model, ShallowNNModel):
+            joblib.dump(model, EXPORT_PATH / f"{run_id}.joblib", compress=3)
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)
 
         # 8. Cleanup some memory

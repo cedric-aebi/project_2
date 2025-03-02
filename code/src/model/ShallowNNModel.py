@@ -23,11 +23,11 @@ class ShallowNNModel(AbstractModel):
         keras.utils.set_random_seed(42)
         self._grid_search_cv = None
         hyperparameter_grid = {
-            "clf__model__optimizer": ["adam"],
-            "clf__model__learning_rate": [0.001],
-            "clf__model__dropout": [None],  # 0.2 and 0.5 for regularization
-            "clf__model__batch_normalization": [False],  # True for regularization
-            "clf__model__regularization": [False],  # True for regularization
+            "clf__model__optimizer": ["adam", "sgd"],
+            "clf__model__learning_rate": [0.001, 0.01],
+            "clf__model__dropout": [None],
+            "clf__model__batch_normalization": [False],
+            "clf__model__regularization": [False],
         }
         early_stopping_callback = keras.callbacks.EarlyStopping(patience=10, monitor="val_loss", min_delta=0.001)
         reduce_lr_callback = keras.callbacks.ReduceLROnPlateau(patience=7, monitor="val_loss", factor=0.2)

@@ -22,9 +22,13 @@ class DatasetService:
             self.__path_to_datasets / "Improved_All_Combined_hr_rsp_binary.csv", sep=","
         )
 
-    def get_subject_data(self, subject: str | int, with_features: bool) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def get_subject_data(
+        self, subject: str | int, with_features: bool, frac: float | None = None
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         if with_features:
             df = self.__dataset_with_features
+            if frac is not None:
+                df = df.sample(frac=frac, random_state=42)
             if subject != "all":
                 df = df[df["Subject"] == subject]
             df = df.fillna(0)
@@ -33,12 +37,19 @@ class DatasetService:
             return x, y
         else:
             df = self.__dataset_without_features
+            if frac is not None:
+                df = df.sample(frac=frac, random_state=42)
             if subject != "all":
                 df = df[df["Participant"] == subject]
             df = df.ffill().bfill()
             x = df.drop(columns=[self.__label_column, "Participant", "Time(sec)"])
             y = df[self.__label_column]
             return x, y
+
+    def load_dataset_with_features(self) -> pd.DataFrame:
+        df = self.__dataset_with_features
+        df = df.fillna(0)
+        return df
 
     def load_original_dataset(self) -> pd.DataFrame:
         return pd.read_csv(self.__path_to_datasets / "Improved_All_Combined_hr_rsp_binary.csv", sep=",")

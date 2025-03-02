@@ -16,7 +16,7 @@ from service.visualizationservice.VisualizationService import VisualizationServi
 class ExportService:
     def __init__(self, database: str | None = None, collection: str | None = None):
         if database is not None and collection is not None:
-            client = MongoClient("localhost", 3011)
+            client = MongoClient("localhost", 27017)
             db = client[database]
             self.__collection: Collection = db[collection]
 
@@ -81,11 +81,11 @@ class ExportService:
                 logistic_regression_models = []
                 dnn_models = []
                 for document in documents:
-                    if document["model"] == "XGBoost" and document["subject_nr"] != "server":
+                    if document["model"] == Model.XGBOOST.value and document["subject_nr"] != "server":
                         xboost_models.append(document)
-                    if document["model"] == "Logistic Regression" and document["subject_nr"] != "server":
+                    if document["model"] == Model.LOGISTIC_REGRESSION.value and document["subject_nr"] != "server":
                         logistic_regression_models.append(document)
-                    if document["model"] == "DNN" and document["subject_nr"] != "server":
+                    if document["model"] == Model.SHALLOW_NN.value and document["subject_nr"] != "server":
                         dnn_models.append(document)
 
                 # XBoost Models average
@@ -159,7 +159,7 @@ class ExportService:
 
         match collection:
             case "centralized":
-                best = self.__collection.find({"model": model}).sort("average_scoring.mean_f1", -1)[0]
+                best = self.__collection.find({"model": model.value}).sort("average_scoring.mean_f1", -1)[0]
 
                 rows = []
 
@@ -200,9 +200,9 @@ class ExportService:
                 )
 
                 df = pd.DataFrame(data=rows, columns=["Subject", "Accuracy", "Recall", "Precision", "F1"])
-                df.to_csv(base_path / collection / f"{model}_{best['_id']}.csv", index=False)
+                df.to_csv(base_path / collection / f"{model.value}_{best['_id']}.csv", index=False)
             case "individual":
-                best = self.__collection.find({"model": model}).sort("average_scoring.mean_f1", -1)[0]
+                best = self.__collection.find({"model": model.value}).sort("average_scoring.mean_f1", -1)[0]
 
                 rows = []
 
@@ -230,13 +230,13 @@ class ExportService:
                 )
 
                 df = pd.DataFrame(data=rows, columns=["Subject", "Accuracy", "Recall", "Precision", "F1"])
-                df.to_csv(base_path / collection / f"{model}_{best['_id']}.csv", index=False)
+                df.to_csv(base_path / collection / f"{model.value}_{best['_id']}.csv", index=False)
             case "federated":
                 rows = []
 
                 # Individual scores
                 for subject in range(2, 36):
-                    document = self.__collection.find_one({"model": model, "subject_nr": subject})
+                    document = self.__collection.find_one({"model": model.value, "subject_nr": subject})
                     rows.append(
                         [
                             document["subject_nr"],
@@ -248,7 +248,7 @@ class ExportService:
                     )
 
                 # Average scores
-                average = self.__collection.find_one({"model": model, "subject_nr": "average"})
+                average = self.__collection.find_one({"model": model.value, "subject_nr": "average"})
                 rows.append(
                     [
                         "Average",
@@ -260,7 +260,7 @@ class ExportService:
                 )
 
                 # Centralized Scoring
-                server = self.__collection.find_one({"model": model, "subject_nr": "server"})
+                server = self.__collection.find_one({"model": model.value, "subject_nr": "server"})
                 rows.append(
                     [
                         "Centralized",
@@ -272,7 +272,7 @@ class ExportService:
                 )
 
                 df = pd.DataFrame(data=rows, columns=["Subject", "Accuracy", "Recall", "Precision", "F1"])
-                df.to_csv(base_path / collection / f"{model}.csv", index=False)
+                df.to_csv(base_path / collection / f"{model.value}.csv", index=False)
 
     def export_pre_processing_comparison(self, base_path: Path) -> None:
         if self.__collection is None:
@@ -283,19 +283,19 @@ class ExportService:
         # Logistic Regression Models
         document = self.__collection.find_one(
             {
-                "model": Model.LOGISTIC_REGRESSION,
+                "model": Model.LOGISTIC_REGRESSION.value,
                 "pre-processing.resampling.method": None,
                 "pre-processing.scaling.method": None,
             }
         )
         documents.append(document)
-        document = self.__collection.find({"model": Model.LOGISTIC_REGRESSION}).sort(
+        document = self.__collection.find({"model": Model.LOGISTIC_REGRESSION.value}).sort(
             "centralized_scoring.testing_set.f1", -1
         )[0]
         documents.append(document)
         document = self.__collection.find(
             {
-                "model": Model.LOGISTIC_REGRESSION,
+                "model": Model.LOGISTIC_REGRESSION.value,
                 "pre-processing.resampling.method": {"$ne": document["pre-processing"]["resampling"]["method"]},
             }
         ).sort("centralized_scoring.testing_set.f1", -1)[0]
@@ -303,14 +303,20 @@ class ExportService:
 
         # XGBoost Models
         document = self.__collection.find_one(
-            {"model": Model.XGBOOST, "pre-processing.resampling.method": None, "pre-processing.scaling.method": None}
+            {
+                "model": Model.XGBOOST.value,
+                "pre-processing.resampling.method": None,
+                "pre-processing.scaling.method": None,
+            }
         )
         documents.append(document)
-        document = self.__collection.find({"model": Model.XGBOOST}).sort("centralized_scoring.testing_set.f1", -1)[0]
+        document = self.__collection.find({"model": Model.XGBOOST.value}).sort(
+            "centralized_scoring.testing_set.f1", -1
+        )[0]
         documents.append(document)
         document = self.__collection.find(
             {
-                "model": Model.XGBOOST,
+                "model": Model.XGBOOST.value,
                 "pre-processing.resampling.method": {"$ne": document["pre-processing"]["resampling"]["method"]},
             }
         ).sort("centralized_scoring.testing_set.f1", -1)[0]
@@ -318,14 +324,20 @@ class ExportService:
 
         # DNN Models
         document = self.__collection.find_one(
-            {"model": Model.DNN, "pre-processing.resampling.method": None, "pre-processing.scaling.method": None}
+            {
+                "model": Model.SHALLOW_NN.value,
+                "pre-processing.resampling.method": None,
+                "pre-processing.scaling.method": None,
+            }
         )
         documents.append(document)
-        document = self.__collection.find({"model": Model.DNN}).sort("centralized_scoring.testing_set.f1", -1)[0]
+        document = self.__collection.find({"model": Model.SHALLOW_NN.value}).sort(
+            "centralized_scoring.testing_set.f1", -1
+        )[0]
         documents.append(document)
         document = self.__collection.find(
             {
-                "model": Model.DNN,
+                "model": Model.SHALLOW_NN.value,
                 "pre-processing.resampling.method": {"$ne": document["pre-processing"]["resampling"]["method"]},
             }
         ).sort("centralized_scoring.testing_set.f1", -1)[0]

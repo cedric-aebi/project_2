@@ -78,9 +78,9 @@ def load_data(subject: int | str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFr
     x_train, x_test, y_train, y_test = dataset_service.train_test_split(x=x, y=y)
 
     # Scale the data
-    # scaler = StandardScaler()
-    # x_train = scaler.fit_transform(x_train)
-    # x_test = scaler.transform(x_test)
+    scaler = StandardScaler()
+    x_train = scaler.fit_transform(x_train)
+    x_test = scaler.transform(x_test)
 
     # Resample the data
     # resampler = RandomOverSampler(random_state=42)

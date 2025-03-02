@@ -18,9 +18,9 @@ class LogisticRegressionModel(AbstractModel):
     def __init__(self, scaler: BaseEstimator | None, resampler: BaseSampler | None):
         self._grid_search_cv = None
         hyperparameter_grid = {
-            "clf__penalty": ["l2"],  # l1 and l2 for regularization
-            "clf__C": [1],
-            "clf__solver": ["lbfgs"],
+            "clf__penalty": ["l2", "l1"],  # l1 and l2 for regularization
+            "clf__C": [1, 0.1, 0.01],
+            "clf__solver": ["lbfgs", "saga"],
         }
         super().__init__(
             clf=LogisticRegression(random_state=42, max_iter=1000),

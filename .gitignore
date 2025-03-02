@@ -619,5 +619,6 @@ $RECYCLE.BIN/
 _*/
 
 # Pickles and datasets
-**/WESAD
 **/*.pkl
+**/dataset/
+**/*.joblib

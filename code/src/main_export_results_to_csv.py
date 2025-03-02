@@ -1,12 +1,11 @@
 from pathlib import Path
-from enums.Model import Model
 from service.argumentservice.ArgumentService import ArgumentService
 from service.exportservice.ExportService import ExportService
 
 BASE_PATH = Path(__file__).parent.parent / "results" / "csv"
 
 if __name__ == "__main__":
-    arg_service = ArgumentService()
+    arg_service = ArgumentService(database=True, collection=True, model=True)
     database = arg_service.get_database()
     collection = arg_service.get_collection()
     model = arg_service.get_model()

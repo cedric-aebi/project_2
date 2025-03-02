@@ -35,11 +35,11 @@ if __name__ == "__main__":
         # 1. Initialize dummy model for hash calculation
         match model_enum:
             case Model.XGBOOST:
-                model = XGBoostModel(scaler=None, resampler=None)
+                dummy_model = XGBoostModel(scaler=None, resampler=None)
             case Model.LOGISTIC_REGRESSION:
-                model = LogisticRegressionModel(scaler=None, resampler=None)
+                dummy_model = LogisticRegressionModel(scaler=None, resampler=None)
             case Model.SHALLOW_NN:
-                model = ShallowNNModel(scaler=None, resampler=None, input_shape=144 if with_features else 2)
+                dummy_model = ShallowNNModel(scaler=None, resampler=None, input_shape=144 if with_features else 2)
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
                 "scaling": {"method": scaling_method.value if scaling_method is not None else None},
             },
             "subjects": [],
-            "hyperparameters": model.get_hyperparameter_grid(),
+            "hyperparameters": dummy_model.get_hyperparameter_grid(),
         }
 
         # 3. Create a has over the run_info dict and the current database and check if run already exists
@@ -98,13 +98,16 @@ if __name__ == "__main__":
 
             if not os.path.exists(EXPORT_PATH):
                 os.makedirs(EXPORT_PATH)
-            joblib.dump(model, EXPORT_PATH / f"{run_id}_subject_{subject}.joblib", compress=3)
+            if not isinstance(model, ShallowNNModel):
+                joblib.dump(model, EXPORT_PATH / f"{run_id}_subject_{subject}.joblib", compress=3)
 
             # Free up memory and garbage collect
-            del y, x, scaler, resampler, x_train, x_test, y_train, y_test, model
+            del scaler, resampler, model
 
         # Export run configuration and results to mongodb
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)
 
+        del dummy_model
+
         # Restart the script to free up memory
-        os.execv(sys.executable, ["python"] + sys.argv)
+        # os.execv(sys.executable, ["python"] + sys.argv)

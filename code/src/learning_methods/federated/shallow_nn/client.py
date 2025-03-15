@@ -1,4 +1,5 @@
 import keras
+import numpy as np
 from flwr.client import ClientApp, NumPyClient
 from flwr.common import Context
 from sklearn.metrics import f1_score
@@ -20,15 +21,15 @@ class FlowerClient(NumPyClient):
         dropout,
         verbose,
     ):
+        self.x_train, self.x_test, self.y_train, self.y_test = data
         self.model = load_model(
             learning_rate=learning_rate,
-            input_shape=144,
+            input_shape=self.x_train.shape[1],
             dropout=dropout,
             batch_normalization=batch_normalization,
             regularization=regularization,
             optimizer=optimizer,
         )
-        self.x_train, self.x_test, self.y_train, self.y_test = data
         self.epochs = epochs
         self.batch_size = batch_size
         self.verbose = verbose
@@ -53,8 +54,8 @@ class FlowerClient(NumPyClient):
         """Evaluate the model on the data this client has."""
         self.model.set_weights(parameters)
         loss, accuracy = self.model.evaluate(self.x_test, self.y_test, verbose=0)
-        y_pred = self.model.predict(self.x_test)
-        f1 = f1_score(y_true=self.y_test, y_pred=y_pred > 0.5)
+        y_pred = np.argmax(self.model.predict(self.x_test), axis=-1)
+        f1 = f1_score(self.y_test, y_pred, average="weighted")
 
         return loss, len(self.x_test), {"f1": f1}
 
@@ -66,7 +67,7 @@ def client_fn(context: Context):
     keras.backend.clear_session()
 
     # Read the node_config to fetch data partition associated to this node
-    partition_id = context.node_config["partition-id"] + 2
+    partition_id = context.node_config["partition-id"]
     data = load_data(partition_id)
 
     # Read run_config to fetch hyperparameters relevant to this run

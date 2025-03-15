@@ -1,6 +1,8 @@
 import os
 import warnings
 
+from enums.Dataset import Dataset
+
 warnings.simplefilter("ignore", category=FutureWarning)
 os.environ["PYTHONWARNINGS"] = "ignore::FutureWarning"
 
@@ -18,16 +20,20 @@ from model.AbstractModel import AbstractModel
 
 
 class ShallowNNModel(AbstractModel):
-    def __init__(self, scaler: BaseEstimator | None, resampler: BaseSampler | None, input_shape: int):
+    def __init__(
+        self, scaler: BaseEstimator | None, resampler: BaseSampler | None, input_shape: int, dataset_name: Dataset
+    ):
         tf.random.set_seed(42)
         keras.utils.set_random_seed(42)
         self._grid_search_cv = None
+        self._dataset_name = dataset_name
         hyperparameter_grid = {
-            "clf__model__optimizer": ["adam", "sgd"],
-            "clf__model__learning_rate": [0.001, 0.01],
+            "clf__model__optimizer": ["adam"],
+            "clf__model__learning_rate": [0.001],
             "clf__model__dropout": [None],
             "clf__model__batch_normalization": [False],
             "clf__model__regularization": [False],
+            "clf__model__dataset_name": [dataset_name],
         }
         early_stopping_callback = keras.callbacks.EarlyStopping(patience=10, monitor="val_loss", min_delta=0.001)
         reduce_lr_callback = keras.callbacks.ReduceLROnPlateau(patience=7, monitor="val_loss", factor=0.2)
@@ -62,6 +68,7 @@ class ShallowNNModel(AbstractModel):
         dropout: float | None,
         batch_normalization: bool,
         regularization: bool,
+        dataset_name: Dataset,
     ) -> keras.Sequential:
         # Define the model
         model = keras.Sequential()
@@ -94,8 +101,12 @@ class ShallowNNModel(AbstractModel):
         model.add(keras.layers.Dense(50, kernel_regularizer=L1L2() if regularization else None))
         model.add(keras.layers.LeakyReLU())
 
-        # Output layer with 1 neuron, sigmoid activation for binary classification
-        model.add(keras.layers.Dense(1, activation="sigmoid"))
+        if dataset_name == Dataset.NURSE:
+            # output layer for multi-class classification (3 classes)
+            model.add(keras.layers.Dense(3, activation="softmax"))
+        else:
+            # Output layer with 1 neuron, sigmoid activation for binary classification
+            model.add(keras.layers.Dense(1, activation="sigmoid"))
 
         if optimizer == "adam":
             optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
@@ -106,7 +117,10 @@ class ShallowNNModel(AbstractModel):
         else:
             raise ValueError(f"Invalid optimizer: {optimizer}")
 
-        model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=["accuracy"])
+        if dataset_name == Dataset.NURSE:
+            model.compile(loss="sparse_categorical_crossentropy", optimizer=optimizer, metrics=["accuracy"])
+        else:
+            model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=["accuracy"])
 
         return model
 

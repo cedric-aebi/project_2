@@ -30,10 +30,7 @@ class FlowerClient(Client):
             bst_input.update(self.train_dmatrix, bst_input.num_boosted_rounds())
 
         # Bagging: extract the last N=num_local_round trees for sever aggregation
-        bst = bst_input[
-            bst_input.num_boosted_rounds()
-            - self.num_local_round : bst_input.num_boosted_rounds()
-        ]
+        bst = bst_input[bst_input.num_boosted_rounds() - self.num_local_round : bst_input.num_boosted_rounds()]
 
         return bst
 
@@ -97,7 +94,7 @@ class FlowerClient(Client):
 
 def client_fn(context: Context):
     # Load model and data
-    partition_id = context.node_config["partition-id"] + 2
+    partition_id = context.node_config["partition-id"]
     train_dmatrix, valid_dmatrix, num_train, num_val = load_data(partition_id)
 
     cfg = replace_keys(unflatten_dict(context.run_config))

@@ -15,12 +15,13 @@ clientapp = "client:app"
 [tool.flwr.app.config]
 # ServerApp
 num-server-rounds = 30
-fraction-fit = 0.1
-fraction-evaluate = 0.1
+fraction-fit = 1
+fraction-evaluate = 1
 
 # ClientApp
 local-epochs = 1
-params.objective = "binary:logistic"
+params.objective = "multi:softmax"
+params.num-class = 3
 params.eta = 0.1 # Learning rate
 params.max-depth = 8
 params.eval-metric = "auc"
@@ -32,4 +33,4 @@ params.tree-method = "hist"
 default = "local-simulation"
 
 [tool.flwr.federations.local-simulation]
-options.num-supernodes = 34
+options.num-supernodes = 15

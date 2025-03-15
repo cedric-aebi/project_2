@@ -622,3 +622,5 @@ _*/
 **/*.pkl
 **/dataset/
 **/*.joblib
+**/Stress_dataset/
+merged_data.csv

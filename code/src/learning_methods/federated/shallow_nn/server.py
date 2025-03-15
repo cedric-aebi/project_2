@@ -1,9 +1,10 @@
 import joblib
+import numpy as np
 import pandas as pd
 from flwr.common import Context, Metrics
 from flwr.common import ndarrays_to_parameters
 from flwr.server import ServerConfig, ServerApp, ServerAppComponents
-from flwr.server.strategy import FedAvg, FedProx, FedAdam
+from flwr.server.strategy import FedAvg, FedProx, FedAdam, FedAvgM
 from sklearn.metrics import f1_score
 
 from task import load_model, load_data
@@ -33,8 +34,8 @@ def gen_evaluate_fn(
         )
         model.set_weights(parameters_ndarrays)
         loss, accuracy = model.evaluate(x_test, y_test, verbose=0)
-        y_pred = model.predict(x_test)
-        f1 = f1_score(y_true=y_test, y_pred=y_pred > 0.5)
+        y_pred = np.argmax(model.predict(x_test), axis=-1)
+        f1 = f1_score(y_test, y_pred, average="weighted")
 
         joblib.dump(model, "model.pkl")
         return loss, {"centralized_f1": f1}
@@ -68,6 +69,8 @@ def server_fn(context: Context):
     batch_normalization = context.run_config["batch-normalization"]
     dropout = None if context.run_config["dropout"] == False else context.run_config["dropout"]
 
+    x_train, x_test, y_train, y_test = load_data(subject="all")
+
     # Initialize model parameters
     ndarrays = load_model(
         dropout=dropout,
@@ -75,18 +78,15 @@ def server_fn(context: Context):
         regularization=regularization,
         learning_rate=learning_rate,
         optimizer=optimizer,
-        input_shape=144,
+        input_shape=x_train.shape[1],
     ).get_weights()
     parameters = ndarrays_to_parameters(ndarrays)
 
-    x_train, x_test, y_train, y_test = load_data(subject="all")
-
     # Define the strategy
-    strategy = FedProx(
-        proximal_mu=1,
+    strategy = FedAvgM(
         fraction_fit=context.run_config["fraction-fit"],
         fraction_evaluate=1.0,
-        min_available_clients=34,
+        min_available_clients=15,
         initial_parameters=parameters,
         evaluate_fn=gen_evaluate_fn(
             x_test=x_test,
@@ -96,9 +96,10 @@ def server_fn(context: Context):
             regularization=regularization,
             learning_rate=learning_rate,
             optimizer=optimizer,
-            input_shape=144,
+            input_shape=x_train.shape[1],
         ),
-        evaluate_metrics_aggregation_fn=average,
+        server_momentum=0.9,
+        evaluate_metrics_aggregation_fn=weighted_average,
     )
     # Read from config
     num_rounds = context.run_config["num-server-rounds"]

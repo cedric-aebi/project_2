@@ -29,8 +29,6 @@ def load_model(
     model = keras.Sequential()
     model.add(keras.layers.Input(shape=(input_shape,)))
 
-    model.add(keras.layers.Dense(1024, kernel_regularizer=L1L2() if regularization else None))
-    model.add(keras.layers.LeakyReLU())
     model.add(keras.layers.Dense(512, kernel_regularizer=L1L2() if regularization else None))
     model.add(keras.layers.LeakyReLU())
     if dropout is not None:
@@ -58,7 +56,7 @@ def load_model(
     model.add(keras.layers.Dense(50, kernel_regularizer=L1L2() if regularization else None))
     model.add(keras.layers.LeakyReLU())
 
-    model.add(keras.layers.Dense(3, activation="softmax"))
+    model.add(keras.layers.Dense(1, activation="sigmoid"))
 
     if optimizer == "adam":
         optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
@@ -69,13 +67,16 @@ def load_model(
     else:
         raise ValueError(f"Invalid optimizer: {optimizer}")
 
-    model.compile(loss="sparse_categorical_crossentropy", optimizer=optimizer, metrics=["accuracy"])
+    model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=["accuracy"])
 
     return model
 
 
 dataset = pd.read_csv(Path(__file__).parent.parent.parent.parent / "nurse" / "merged_data.csv", low_memory=False)
 dataset = dataset.drop(columns=["datetime"])
+# Drop participants "CE" and "EG" due to lack of data
+dataset = dataset[~dataset["id"].isin(["CE", "EG"])]
+dataset.loc[dataset["label"] == 2, "label"] = 1
 
 
 def load_data(subject: int | str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -116,25 +117,19 @@ def load_data(subject: int | str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFr
             x = dataset[dataset["id"] == "BG"].drop(columns=["id", "label"])
             y = dataset[dataset["id"] == "BG"]["label"]
         case 10:
-            x = dataset[dataset["id"] == "CE"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "CE"]["label"]
-        case 11:
             x = dataset[dataset["id"] == "DF"].drop(columns=["id", "label"])
             y = dataset[dataset["id"] == "DF"]["label"]
-        case 12:
+        case 11:
             x = dataset[dataset["id"] == "E4"].drop(columns=["id", "label"])
             y = dataset[dataset["id"] == "E4"]["label"]
-        case 13:
-            x = dataset[dataset["id"] == "EG"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "EG"]["label"]
-        case 14:
+        case 12:
             x = dataset[dataset["id"] == "F5"].drop(columns=["id", "label"])
             y = dataset[dataset["id"] == "F5"]["label"]
         case _:
             raise ValueError("Invalid subject number")
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42, shuffle=True, stratify=y)
 
-    resampler = RandomOverSampler()
-    x_train, y_train = resampler.fit_resample(x_train, y_train)
+    # resampler = RandomOverSampler()
+    # x_train, y_train = resampler.fit_resample(x_train, y_train)
 
     return x_train, x_test, y_train, y_test

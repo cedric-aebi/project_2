@@ -20,17 +20,18 @@ fraction-evaluate = 1
 
 # ClientApp
 local-epochs = 1
-params.objective = "multi:softmax"
-params.num-class = 3
-params.eta = 0.1 # Learning rate
-params.max-depth = 8
+params.objective = "binary:logistic"
+params.eta = 0.01 # Learning rate
+params.max-depth = 10
 params.eval-metric = "auc"
 params.num-parallel-tree = 1
-params.subsample = 1
+params.subsample = 0.9
+params.colsample-bytree = 0.9
+params.reg-alpha = 0.1
 params.tree-method = "hist"
 
 [tool.flwr.federations]
 default = "local-simulation"
 
 [tool.flwr.federations.local-simulation]
-options.num-supernodes = 15
+options.num-supernodes = 13

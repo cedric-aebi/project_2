@@ -34,8 +34,8 @@ def gen_evaluate_fn(
         )
         model.set_weights(parameters_ndarrays)
         loss, accuracy = model.evaluate(x_test, y_test, verbose=0)
-        y_pred = np.argmax(model.predict(x_test), axis=-1)
-        f1 = f1_score(y_test, y_pred, average="weighted")
+        y_pred = model.predict(x_test)
+        f1 = f1_score(y_test, y_pred > 0.5)
 
         joblib.dump(model, "model.pkl")
         return loss, {"centralized_f1": f1}
@@ -83,10 +83,11 @@ def server_fn(context: Context):
     parameters = ndarrays_to_parameters(ndarrays)
 
     # Define the strategy
-    strategy = FedAvgM(
+    strategy = FedProx(
+        proximal_mu=0.9,
         fraction_fit=context.run_config["fraction-fit"],
         fraction_evaluate=1.0,
-        min_available_clients=15,
+        min_available_clients=13,
         initial_parameters=parameters,
         evaluate_fn=gen_evaluate_fn(
             x_test=x_test,
@@ -98,7 +99,6 @@ def server_fn(context: Context):
             optimizer=optimizer,
             input_shape=x_train.shape[1],
         ),
-        server_momentum=0.9,
         evaluate_metrics_aggregation_fn=weighted_average,
     )
     # Read from config

@@ -54,8 +54,8 @@ class FlowerClient(NumPyClient):
         """Evaluate the model on the data this client has."""
         self.model.set_weights(parameters)
         loss, accuracy = self.model.evaluate(self.x_test, self.y_test, verbose=0)
-        y_pred = np.argmax(self.model.predict(self.x_test), axis=-1)
-        f1 = f1_score(self.y_test, y_pred, average="weighted")
+        y_pred = self.model.predict(self.x_test)
+        f1 = f1_score(self.y_test, y_pred > 0.5)
 
         return loss, len(self.x_test), {"f1": f1}
 

@@ -31,7 +31,7 @@ class LogisticRegressionModel(AbstractModel):
 
     def fit(self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict) -> None:
         self._grid_search_cv = GridSearchCV(
-            estimator=self._pipeline, param_grid=self._hyperparameter_grid, cv=self._cv, n_jobs=1, verbose=2
+            estimator=self._pipeline, param_grid=self._hyperparameter_grid, cv=self._cv, n_jobs=8, verbose=2
         )
         self._grid_search_cv.fit(x_train, y_train.ravel())
         self._best_estimator = self._grid_search_cv.best_estimator_

@@ -90,6 +90,9 @@ if __name__ == "__main__":
         scores_test_all, cm_all = model.evaluate(pred=pred_test_all, y_true=y_test_all)
         run_info["centralized_scoring"] = {"training_set": scores_train_all, "testing_set": scores_test_all}
 
+        # Cleanup memory
+        del x_all, y_all, x_train_all, x_test_all, y_train_all, y_test_all
+
         # 6. Get training and testing results on individual datasets
         run_info["individual_scoring"] = []
         for participant in utils.get_list_of_participants(dataset=dataset):

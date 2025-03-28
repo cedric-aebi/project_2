@@ -620,9 +620,5 @@ _*/
 
 # Pickles and datasets
 **/*.pkl
-**/dataset/
+datasets/
 **/*.joblib
-**/Stress_dataset/
-merged_data.csv
-stresSense.csv
-nurse_features.csv

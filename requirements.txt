@@ -17,3 +17,4 @@ neurokit2==0.2.10
 PyWavelets==1.8.0
 tqdm==4.67.1
 joblib==1.4.2
+pyarrow==19.0.1

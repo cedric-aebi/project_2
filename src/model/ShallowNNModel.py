@@ -43,7 +43,7 @@ class ShallowNNModel(AbstractModel):
             model=self._build_model,
             model__input_shape=input_shape,
             epochs=150 if dataset == Dataset.STRESS else 50,
-            batch_size=32 if dataset == Dataset.STRESS else 128,
+            batch_size=32 if dataset == Dataset.STRESS else 64,
             verbose=2,
             random_state=42,
             validation_split=0.2,

@@ -56,7 +56,7 @@ class ShallowNNModel(AbstractModel):
             estimator=self._pipeline,
             param_grid=self._hyperparameter_grid,
             cv=self._cv,
-            n_jobs=8 if self._dataset == Dataset.STRESS else 4,
+            n_jobs=2,
             verbose=2,
         )
         self._grid_search_cv.fit(x_train, y_train)

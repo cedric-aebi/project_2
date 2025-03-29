@@ -53,6 +53,7 @@ if __name__ == "__main__":
                     resampler=resampler,
                     input_shape=x_train_all.shape[1],
                     dataset=dataset,
+                    with_features=with_features,
                 )
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")

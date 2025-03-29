@@ -43,7 +43,7 @@ class ShallowNNModel(AbstractModel):
             model=self._build_model,
             model__input_shape=input_shape,
             epochs=150 if dataset == Dataset.STRESS else 50,
-            batch_size=32 if dataset == Dataset.STRESS else 64,
+            batch_size=32 if dataset == Dataset.STRESS else 128,
             verbose=2,
             random_state=42,
             validation_split=0.2,
@@ -56,7 +56,7 @@ class ShallowNNModel(AbstractModel):
             estimator=self._pipeline,
             param_grid=self._hyperparameter_grid,
             cv=self._cv,
-            n_jobs=2,
+            n_jobs=1,
             verbose=2,
         )
         self._grid_search_cv.fit(x_train, y_train)

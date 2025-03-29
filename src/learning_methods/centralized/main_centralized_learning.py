@@ -6,7 +6,6 @@ from pathlib import Path
 import joblib
 from sklearn.model_selection import train_test_split
 
-from enums.Dataset import Dataset
 from enums.Model import Model
 from model.ShallowNNModel import ShallowNNModel
 from model.LogisticRegressionModel import LogisticRegressionModel
@@ -45,16 +44,15 @@ if __name__ == "__main__":
 
         match model_enum:
             case Model.XGBOOST:
-                model = XGBoostModel(scaler=scaler, resampler=resampler)
+                model = XGBoostModel(scaler=scaler, resampler=resampler, dataset=dataset)
             case Model.LOGISTIC_REGRESSION:
-                model = LogisticRegressionModel(scaler=scaler, resampler=resampler)
+                model = LogisticRegressionModel(scaler=scaler, resampler=resampler, dataset=dataset)
             case Model.SHALLOW_NN:
                 model = ShallowNNModel(
                     scaler=scaler,
                     resampler=resampler,
                     input_shape=x_train_all.shape[1],
-                    epochs=150 if dataset == Dataset.STRESS else 50,
-                    batch_size=32 if dataset == Dataset.STRESS else 64,
+                    dataset=dataset,
                 )
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")

@@ -14,7 +14,7 @@ class NurseParticipant(Enum):
     n_BG = "BG"
     n_DF = "DF"
     n_E4 = "E4"
-    n_F5 = "f5"
+    n_F5 = "F5"
 
     def __str__(self):
         return str(self.value)

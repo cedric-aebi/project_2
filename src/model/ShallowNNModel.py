@@ -1,6 +1,8 @@
 import os
 import warnings
 
+from enums.Dataset import Dataset
+
 warnings.simplefilter("ignore", category=FutureWarning)
 os.environ["PYTHONWARNINGS"] = "ignore::FutureWarning"
 
@@ -23,12 +25,12 @@ class ShallowNNModel(AbstractModel):
         scaler: BaseEstimator | None,
         resampler: BaseSampler | None,
         input_shape: int,
-        epochs: int,
-        batch_size: int,
+        dataset: Dataset,
     ) -> None:
         tf.random.set_seed(42)
         keras.utils.set_random_seed(42)
         self._grid_search_cv = None
+        self._dataset = dataset
         hyperparameter_grid = {
             "clf__model__optimizer": ["adam", "sgd"],
             "clf__model__learning_rate": [0.01, 0.001, 0.0001],
@@ -40,8 +42,8 @@ class ShallowNNModel(AbstractModel):
         clf = KerasClassifier(
             model=self._build_model,
             model__input_shape=input_shape,
-            epochs=epochs,
-            batch_size=batch_size,
+            epochs=150 if dataset == Dataset.STRESS else 50,
+            batch_size=32 if dataset == Dataset.STRESS else 128,
             verbose=2,
             random_state=42,
             validation_split=0.2,
@@ -51,7 +53,11 @@ class ShallowNNModel(AbstractModel):
 
     def fit(self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict) -> None:
         self._grid_search_cv = GridSearchCV(
-            estimator=self._pipeline, param_grid=self._hyperparameter_grid, cv=self._cv, n_jobs=8, verbose=2
+            estimator=self._pipeline,
+            param_grid=self._hyperparameter_grid,
+            cv=self._cv,
+            n_jobs=8 if self._dataset == Dataset.STRESS else 4,
+            verbose=2,
         )
         self._grid_search_cv.fit(x_train, y_train)
         self._best_estimator = self._grid_search_cv.best_estimator_

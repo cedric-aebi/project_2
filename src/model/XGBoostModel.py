@@ -1,6 +1,8 @@
 import os
 import warnings
 
+from enums.Dataset import Dataset
+
 warnings.simplefilter("ignore", category=FutureWarning)
 os.environ["PYTHONWARNINGS"] = "ignore::FutureWarning"
 
@@ -15,8 +17,9 @@ from model.AbstractModel import AbstractModel
 
 
 class XGBoostModel(AbstractModel):
-    def __init__(self, scaler: BaseEstimator | None, resampler: BaseSampler | None):
+    def __init__(self, scaler: BaseEstimator | None, resampler: BaseSampler | None, dataset: Dataset):
         self._grid_search_cv = None
+        self._dataset = dataset
         hyperparameter_grid = {
             "clf__max_depth": [4, 6, 8, 10, 12],
         }
@@ -29,7 +32,11 @@ class XGBoostModel(AbstractModel):
 
     def fit(self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict) -> None:
         self._grid_search_cv = GridSearchCV(
-            estimator=self._pipeline, param_grid=self._hyperparameter_grid, cv=self._cv, n_jobs=8, verbose=2
+            estimator=self._pipeline,
+            param_grid=self._hyperparameter_grid,
+            cv=self._cv,
+            n_jobs=8 if self._dataset == Dataset.STRESS else 4,
+            verbose=2,
         )
         self._grid_search_cv.fit(x_train, y_train)
         self._best_estimator = self._grid_search_cv.best_estimator_

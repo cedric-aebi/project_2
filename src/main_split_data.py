@@ -52,7 +52,7 @@ if __name__ == "__main__":
                 )
     if DATASET == Dataset.STRESS:
         if WITH_FEATURES:
-            data = pd.read_csv(PATH_TO_DATASETS / "stress" / "raw" / "stress_no_features.csv", sep=",")
+            data = pd.read_csv(PATH_TO_DATASETS / "stress" / "raw" / "stress_features.csv", sep=",")
             data = data.fillna(0)
 
             # Rename "Subject" column to "Participant"

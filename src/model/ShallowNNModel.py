@@ -31,8 +31,6 @@ class ShallowNNModel(AbstractModel):
         tf.random.set_seed(42)
         keras.utils.set_random_seed(42)
         self._grid_search_cv = None
-        self._dataset = dataset
-        self._with_features = with_features
         hyperparameter_grid = {
             "clf__model__optimizer": ["adam", "sgd"],
             "clf__model__learning_rate": [0.01, 0.001, 0.0001],
@@ -51,7 +49,14 @@ class ShallowNNModel(AbstractModel):
             validation_split=0.2,
             callbacks=[early_stopping_callback],
         )
-        super().__init__(clf=clf, hyperparameter_grid=hyperparameter_grid, scaler=scaler, resampler=resampler)
+        super().__init__(
+            clf=clf,
+            hyperparameter_grid=hyperparameter_grid,
+            scaler=scaler,
+            resampler=resampler,
+            dataset=dataset,
+            with_features=with_features,
+        )
 
     def fit(self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict) -> None:
         self._grid_search_cv = GridSearchCV(
@@ -67,15 +72,6 @@ class ShallowNNModel(AbstractModel):
 
     def predict(self, x: pd.DataFrame) -> pd.DataFrame:
         return self._best_estimator.predict(x)
-
-    def _get_number_of_jobs(self):
-        if self._dataset == Dataset.STRESS:
-            return 12
-        else:
-            if self._with_features:
-                return 2
-            else:
-                return 8
 
     @staticmethod
     def _build_model(

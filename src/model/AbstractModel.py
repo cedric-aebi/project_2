@@ -5,17 +5,23 @@ from imblearn.base import BaseSampler
 from imblearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
-from sklearn.model_selection import StratifiedKFold, KFold
+from sklearn.model_selection import StratifiedKFold
+
+from enums.Dataset import Dataset
 
 
 class AbstractModel(ABC):
     def __init__(
         self,
         clf: Any,
+        dataset: Dataset,
+        with_features: bool,
         scaler: BaseEstimator | None,
         resampler: BaseSampler | None,
         hyperparameter_grid: dict | None = None,
     ) -> None:
+        self._dataset = dataset
+        self._with_features = with_features
         self._cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
         self._clf = clf
         self._hyperparameter_grid = hyperparameter_grid
@@ -68,3 +74,12 @@ class AbstractModel(ABC):
     @abstractmethod
     def get_fitted_model(self) -> Pipeline:
         pass
+
+    def _get_number_of_jobs(self):
+        if self._dataset == Dataset.STRESS:
+            return 12
+        else:
+            if self._with_features:
+                return 2
+            else:
+                return 8

@@ -17,7 +17,9 @@ from model.AbstractModel import AbstractModel
 
 
 class LogisticRegressionModel(AbstractModel):
-    def __init__(self, scaler: BaseEstimator | None, resampler: BaseSampler | None, dataset: Dataset):
+    def __init__(
+        self, scaler: BaseEstimator | None, resampler: BaseSampler | None, dataset: Dataset, with_features: bool
+    ):
         self._grid_search_cv = None
         self._dataset = dataset
         hyperparameter_grid = {
@@ -30,6 +32,8 @@ class LogisticRegressionModel(AbstractModel):
             hyperparameter_grid=hyperparameter_grid,
             scaler=scaler,
             resampler=resampler,
+            dataset=dataset,
+            with_features=with_features,
         )
 
     def fit(self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict) -> None:
@@ -37,7 +41,7 @@ class LogisticRegressionModel(AbstractModel):
             estimator=self._pipeline,
             param_grid=self._hyperparameter_grid,
             cv=self._cv,
-            n_jobs=-1,
+            n_jobs=self._get_number_of_jobs(),
             verbose=2,
         )
         self._grid_search_cv.fit(x_train, y_train.ravel())

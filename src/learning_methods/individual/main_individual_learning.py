@@ -121,7 +121,7 @@ if __name__ == "__main__":
             joblib.dump(model, EXPORT_PATH / f"{run_id}_participant_{participant}.joblib", compress=3)
 
             # Free up memory and garbage collect
-            del scaler, resampler, model
+            del scaler, resampler, model, x, y, x_train, x_test, y_train, y_test, pred_train, pred_test
 
         # Export run configuration and results to mongodb
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)

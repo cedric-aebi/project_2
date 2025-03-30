@@ -44,9 +44,11 @@ if __name__ == "__main__":
 
         match model_enum:
             case Model.XGBOOST:
-                model = XGBoostModel(scaler=scaler, resampler=resampler, dataset=dataset)
+                model = XGBoostModel(scaler=scaler, resampler=resampler, dataset=dataset, with_features=with_features)
             case Model.LOGISTIC_REGRESSION:
-                model = LogisticRegressionModel(scaler=scaler, resampler=resampler, dataset=dataset)
+                model = LogisticRegressionModel(
+                    scaler=scaler, resampler=resampler, dataset=dataset, with_features=with_features
+                )
             case Model.SHALLOW_NN:
                 model = ShallowNNModel(
                     scaler=scaler,

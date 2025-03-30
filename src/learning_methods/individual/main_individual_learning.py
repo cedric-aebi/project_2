@@ -6,7 +6,6 @@ from pathlib import Path
 import joblib
 from sklearn.model_selection import train_test_split
 
-from enums.Dataset import Dataset
 from enums.Model import Model
 from model.ShallowNNModel import ShallowNNModel
 from model.LogisticRegressionModel import LogisticRegressionModel
@@ -38,16 +37,18 @@ if __name__ == "__main__":
         # 1. Initialize dummy model for hash calculation
         match model_enum:
             case Model.XGBOOST:
-                dummy_model = XGBoostModel(scaler=None, resampler=None)
+                dummy_model = XGBoostModel(scaler=None, resampler=None, dataset=dataset, with_features=with_features)
             case Model.LOGISTIC_REGRESSION:
-                dummy_model = LogisticRegressionModel(scaler=None, resampler=None)
+                dummy_model = LogisticRegressionModel(
+                    scaler=None, resampler=None, dataset=dataset, with_features=with_features
+                )
             case Model.SHALLOW_NN:
                 dummy_model = ShallowNNModel(
                     scaler=None,
                     resampler=None,
                     input_shape=0,
-                    epochs=0,
-                    batch_size=0,
+                    dataset=dataset,
+                    with_features=with_features,
                 )
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")
@@ -88,16 +89,20 @@ if __name__ == "__main__":
 
             match model_enum:
                 case Model.XGBOOST:
-                    model = XGBoostModel(scaler=scaler, resampler=resampler)
+                    model = XGBoostModel(
+                        scaler=scaler, resampler=resampler, dataset=dataset, with_features=with_features
+                    )
                 case Model.LOGISTIC_REGRESSION:
-                    model = LogisticRegressionModel(scaler=scaler, resampler=resampler)
+                    model = LogisticRegressionModel(
+                        scaler=scaler, resampler=resampler, dataset=dataset, with_features=with_features
+                    )
                 case Model.SHALLOW_NN:
                     model = ShallowNNModel(
                         scaler=scaler,
                         resampler=resampler,
                         input_shape=x_train.shape[1],
-                        epochs=150 if dataset == Dataset.STRESS else 50,
-                        batch_size=32 if dataset == Dataset.STRESS else 64,
+                        dataset=dataset,
+                        with_features=with_features,
                     )
                 case _:
                     raise Exception(f"Could not initialize model {model_enum.value} for config")

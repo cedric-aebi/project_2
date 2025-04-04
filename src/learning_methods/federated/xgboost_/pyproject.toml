@@ -34,4 +34,4 @@ params.tree-method = "hist"
 default = "local-simulation"
 
 [tool.flwr.federations.local-simulation]
-options.num-supernodes = 13
+options.num-supernodes = 12

@@ -47,6 +47,7 @@ class LogisticRegressionModel(AbstractModel):
                 cv=cv,
                 n_jobs=self._get_number_of_jobs(),
                 verbose=2,
+                scoring="f1_weighted",
             )
             self._grid_search_cv.fit(x_train, y_train.ravel(), groups=groups)
         else:
@@ -57,9 +58,13 @@ class LogisticRegressionModel(AbstractModel):
                 cv=cv,
                 n_jobs=self._get_number_of_jobs(),
                 verbose=2,
+                scoring="f1_weighted",
             )
             self._grid_search_cv.fit(x_train, y_train.ravel())
         self._best_estimator = self._grid_search_cv.best_estimator_
+        selected_features = self._best_estimator.named_steps["feature_selection"].get_support(indices=True)
+        feature_names = x_train.columns[selected_features]
+        run_info["selected_features"] = list(feature_names)
         run_info["cv_best_score"] = self._grid_search_cv.best_score_
         run_info["cv_best_params"] = self._grid_search_cv.best_params_
 

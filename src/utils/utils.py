@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pandas as pd
 from imblearn.base import BaseSampler
-from imblearn.combine import SMOTEENN
 from imblearn.over_sampling import SMOTE, RandomOverSampler
 from imblearn.under_sampling import TomekLinks
 from sklearn.base import BaseEstimator
@@ -22,8 +21,6 @@ def get_resampler(method: ResamplingMethod | None) -> BaseSampler | None:
             resampler = RandomOverSampler(random_state=42)
         case ResamplingMethod.TL:
             resampler = TomekLinks()
-        case ResamplingMethod.SMOTEENN:
-            resampler = SMOTEENN(random_state=42)
         case None:
             resampler = None
         case _:

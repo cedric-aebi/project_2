@@ -38,7 +38,7 @@ class ArgumentService:
                 "--resampling",
                 nargs="+",
                 required=True,
-                help="Space-separated list of resampling methods: smote, smoteenn, tl, oversampling, none",
+                help="Space-separated list of resampling methods: smote, tl, oversampling, none",
             )
         if scaling:
             parser.add_argument(
@@ -103,8 +103,6 @@ class ArgumentService:
             match method:
                 case "smote":
                     resampling_methods.append(ResamplingMethod.SMOTE)
-                case "smoteenn":
-                    resampling_methods.append(ResamplingMethod.SMOTEENN)
                 case "tl":
                     resampling_methods.append(ResamplingMethod.TL)
                 case "oversampling":

@@ -5,7 +5,6 @@ from imblearn.base import BaseSampler
 from imblearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
-from sklearn.model_selection import StratifiedKFold
 
 from enums.Dataset import Dataset
 
@@ -22,7 +21,6 @@ class AbstractModel(ABC):
     ) -> None:
         self._dataset = dataset
         self._with_features = with_features
-        self._cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
         self._clf = clf
         self._hyperparameter_grid = hyperparameter_grid
         self._scaler = scaler
@@ -34,7 +32,9 @@ class AbstractModel(ABC):
         return dict(sorted(self._hyperparameter_grid.items()))
 
     @abstractmethod
-    def fit(self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict) -> None:
+    def fit(
+        self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict, groups: pd.DataFrame | None = None
+    ) -> None:
         pass
 
     @abstractmethod

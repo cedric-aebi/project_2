@@ -14,7 +14,7 @@ import tensorflow as tf
 from imblearn.base import BaseSampler
 from scikeras.wrappers import KerasClassifier
 from sklearn.base import BaseEstimator
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, StratifiedKFold
 
 from model.AbstractModel import AbstractModel
 
@@ -58,16 +58,31 @@ class ShallowNNModel(AbstractModel):
             with_features=with_features,
         )
 
-    def fit(self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict) -> None:
-        self._grid_search_cv = GridSearchCV(
-            estimator=self._pipeline,
-            param_grid=self._hyperparameter_grid,
-            cv=self._cv,
-            n_jobs=self._get_number_of_jobs(),
-            verbose=2,
-        )
-        self._grid_search_cv.fit(x_train, y_train)
+    def fit(
+        self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict, groups: pd.DataFrame | None = None
+    ) -> None:
+        if groups is not None:
+            cv = StratifiedGroupKFold(n_splits=len(set(groups)), shuffle=True, random_state=42)
+            self._grid_search_cv = GridSearchCV(
+                estimator=self._pipeline,
+                param_grid=self._hyperparameter_grid,
+                cv=cv,
+                n_jobs=self._get_number_of_jobs(),
+                verbose=2,
+            )
+            self._grid_search_cv.fit(x_train, y_train, groups=groups)
+        else:
+            cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+            self._grid_search_cv = GridSearchCV(
+                estimator=self._pipeline,
+                param_grid=self._hyperparameter_grid,
+                cv=cv,
+                n_jobs=self._get_number_of_jobs(),
+                verbose=2,
+            )
+            self._grid_search_cv.fit(x_train, y_train)
         self._best_estimator = self._grid_search_cv.best_estimator_
+        run_info["cv_results"] = self._grid_search_cv.cv_results_
         run_info["best_params"] = self._grid_search_cv.best_params_
 
     def predict(self, x: pd.DataFrame) -> pd.DataFrame:

@@ -45,9 +45,7 @@ def get_scaler(method: ScalingMethod | None) -> BaseEstimator | None:
     return scaler
 
 
-def load_data(
-    dataset: Dataset, with_features: bool, which: str | NurseParticipant | StressParticipant
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+def load_data(dataset: Dataset, with_features: bool, which: str | NurseParticipant | StressParticipant) -> pd.DataFrame:
     PATH_TO_DATASETS = Path(__file__).parent.parent.parent / "datasets"
     if dataset == Dataset.NURSE:
         if with_features:
@@ -62,16 +60,14 @@ def load_data(
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 
-    x = df.drop(columns=["Label", "Participant"])
-    y = df["Label"]
-    return x, y
+    return df
 
 
-def get_list_of_participants(dataset: Dataset) -> list[str]:
+def get_list_of_participants(dataset: Dataset) -> list[str] | list[int]:
     if dataset == Dataset.NURSE:
         participants = [str(e.value) for e in NurseParticipant]
     elif dataset == Dataset.STRESS:
-        participants = [str(e.value) for e in StressParticipant]
+        participants = [e.value for e in StressParticipant]
     else:
         raise ValueError(f"Dataset {dataset} not recognized")
 

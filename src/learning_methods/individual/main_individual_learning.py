@@ -81,7 +81,9 @@ if __name__ == "__main__":
         for idx, participant in enumerate(utils.get_list_of_participants(dataset=dataset)):
             run_info["participants"].append({"participant": participant})
 
-            x, y = utils.load_data(dataset=dataset, which=participant, with_features=with_features)
+            df = utils.load_data(dataset=dataset, which=participant, with_features=with_features)
+            x = df.drop(columns=["Label", "Participant"])
+            y = df["Label"]
             x_train, x_test, y_train, y_test = train_test_split(x, y, shuffle=True, random_state=42, stratify=y)
 
             scaler = utils.get_scaler(method=scaling_method)

@@ -32,7 +32,7 @@ class ShallowNNModel(AbstractModel):
         keras.utils.set_random_seed(42)
         self._grid_search_cv = None
         hyperparameter_grid = {
-            "clf__model__optimizer": ["adam", "sgd"],
+            "clf__model__optimizer": ["adam"],
             "clf__model__learning_rate": [0.01, 0.001, 0.0001],
             "clf__model__dropout": [None],
             "clf__model__batch_normalization": [False],
@@ -82,8 +82,8 @@ class ShallowNNModel(AbstractModel):
             )
             self._grid_search_cv.fit(x_train, y_train)
         self._best_estimator = self._grid_search_cv.best_estimator_
-        run_info["cv_results"] = self._grid_search_cv.cv_results_
-        run_info["best_params"] = self._grid_search_cv.best_params_
+        run_info["cv_best_score"] = self._grid_search_cv.best_score_
+        run_info["cv_best_params"] = self._grid_search_cv.best_params_
 
     def predict(self, x: pd.DataFrame) -> pd.DataFrame:
         return self._best_estimator.predict(x)

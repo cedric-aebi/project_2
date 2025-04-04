@@ -77,7 +77,7 @@ class AbstractModel(ABC):
 
     def _get_number_of_jobs(self):
         if self._dataset == Dataset.STRESS:
-            return 12
+            return 16
         else:
             if self._with_features:
                 return 2

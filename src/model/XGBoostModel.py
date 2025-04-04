@@ -58,8 +58,8 @@ class XGBoostModel(AbstractModel):
             )
             self._grid_search_cv.fit(x_train, y_train)
         self._best_estimator = self._grid_search_cv.best_estimator_
-        run_info["cv_results"] = self._grid_search_cv.cv_results_
-        run_info["best_params"] = self._grid_search_cv.best_params_
+        run_info["cv_best_score"] = self._grid_search_cv.best_score_
+        run_info["cv_best_params"] = self._grid_search_cv.best_params_
 
     def predict(self, x: pd.DataFrame) -> pd.DataFrame:
         return self._best_estimator.predict(x)

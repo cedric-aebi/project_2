@@ -47,6 +47,7 @@ if __name__ == "__main__":
                     input_shape=0,
                     dataset=dataset,
                     with_features=with_features,
+                    centralized=True,
                 )
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")

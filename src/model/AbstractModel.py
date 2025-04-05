@@ -27,7 +27,7 @@ class AbstractModel(ABC):
         self._hyperparameter_grid = hyperparameter_grid
         self._scaler = scaler
         self._resampler = resampler
-        selector = SelectFromModel(estimator=XGBClassifier())
+        selector = SelectFromModel(estimator=XGBClassifier(), threshold="median")
         self._pipeline = Pipeline(
             [
                 ("scaler", self._scaler),

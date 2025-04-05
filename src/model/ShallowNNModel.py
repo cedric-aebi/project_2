@@ -27,6 +27,7 @@ class ShallowNNModel(AbstractModel):
         input_shape: int,
         dataset: Dataset,
         with_features: bool,
+        centralized: bool = False,
     ) -> None:
         tf.random.set_seed(42)
         keras.utils.set_random_seed(42)
@@ -38,7 +39,9 @@ class ShallowNNModel(AbstractModel):
             "clf__model__batch_normalization": [False],
             "clf__model__regularization": [False],
         }
-        early_stopping_callback = keras.callbacks.EarlyStopping(patience=5, monitor="val_loss", min_delta=0.001)
+        early_stopping_callback = keras.callbacks.EarlyStopping(
+            patience=5, monitor="loss" if centralized else "val_loss", min_delta=0.001
+        )
         clf = KerasClassifier(
             model=self._build_model,
             model__input_shape=input_shape,
@@ -46,7 +49,7 @@ class ShallowNNModel(AbstractModel):
             batch_size=32 if dataset == Dataset.STRESS else 64,
             verbose=2,
             random_state=42,
-            validation_split=0.2,
+            validation_split=0.0 if centralized else 0.2,
             callbacks=[early_stopping_callback],
         )
         super().__init__(

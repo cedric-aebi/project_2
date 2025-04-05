@@ -77,6 +77,8 @@ if __name__ == "__main__":
         # 4. Set run id and fit the model on the centralized dataset
         run_info["_id"] = run_id
 
+        del dummy_model
+
         # 5. Fit models
         for idx, participant in enumerate(utils.get_list_of_participants(dataset=dataset)):
             run_info["participants"].append({"participant": participant})
@@ -123,12 +125,23 @@ if __name__ == "__main__":
             joblib.dump(model, EXPORT_PATH / f"{run_id}_participant_{participant}.joblib", compress=3)
 
             # Free up memory and garbage collect
-            del scaler, resampler, model, x, y, x_train, x_test, y_train, y_test, pred_train, pred_test
+            del (
+                df,
+                x,
+                y,
+                x_train,
+                x_test,
+                y_train,
+                y_test,
+                scaler,
+                resampler,
+                model,
+                pred_train,
+                scores_train,
+                pred_test,
+                scores_test,
+                scores,
+            )
 
         # Export run configuration and results to mongodb
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)
-
-        del dummy_model
-
-        # Restart the script to free up memory
-        # os.execv(sys.executable, ["python"] + sys.argv)

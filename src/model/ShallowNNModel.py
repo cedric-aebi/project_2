@@ -27,7 +27,7 @@ class ShallowNNModel(AbstractModel):
         input_shape: int,
         dataset: Dataset,
         with_features: bool,
-        centralized: bool = False,
+        centralized=False,
     ) -> None:
         tf.random.set_seed(42)
         keras.utils.set_random_seed(42)
@@ -87,9 +87,6 @@ class ShallowNNModel(AbstractModel):
             )
             self._grid_search_cv.fit(x_train, y_train)
         self._best_estimator = self._grid_search_cv.best_estimator_
-        selected_features = self._best_estimator.named_steps["feature_selection"].get_support(indices=True)
-        feature_names = x_train.columns[selected_features]
-        run_info["selected_features"] = list(feature_names)
         run_info["cv_best_score"] = self._grid_search_cv.best_score_
         run_info["cv_best_params"] = self._grid_search_cv.best_params_
 

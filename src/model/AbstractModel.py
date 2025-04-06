@@ -4,9 +4,7 @@ import pandas as pd
 from imblearn.base import BaseSampler
 from imblearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator
-from sklearn.feature_selection import SelectFromModel
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
-from xgboost import XGBClassifier
 
 from enums.Dataset import Dataset
 
@@ -27,15 +25,7 @@ class AbstractModel(ABC):
         self._hyperparameter_grid = hyperparameter_grid
         self._scaler = scaler
         self._resampler = resampler
-        selector = SelectFromModel(estimator=XGBClassifier(), threshold="median")
-        self._pipeline = Pipeline(
-            [
-                ("scaler", self._scaler),
-                ("feature_selection", selector),
-                ("resampler", self._resampler),
-                ("clf", self._clf),
-            ]
-        )
+        self._pipeline = Pipeline([("scaler", self._scaler), ("resampler", self._resampler), ("clf", self._clf)])
         self._best_estimator = None
 
     def get_hyperparameter_grid(self) -> dict | None:

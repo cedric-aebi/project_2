@@ -1,11 +1,12 @@
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 
 from enums.Dataset import Dataset
 
 # **************************** CONFIGURATION ****************************
-DATASET = Dataset.STRESS
+DATASET = Dataset.NURSE
 WITH_FEATURES = False
 # *************************************************************************
 
@@ -20,6 +21,10 @@ if __name__ == "__main__":
             data = data[~data["Participant"].isin(["CE", "EG"])]
             # Binary classification
             data.loc[data["Label"] == 2, "Label"] = 1
+
+            # convert float64 to float32
+            for col in data.select_dtypes(include=["float64"]).columns:
+                data[col] = data[col].astype(np.float32)
 
             # Save the dataset
             data.to_pickle(PATH_TO_DATASETS / "nurse" / "processed" / "with_features" / "all.pkl")
@@ -41,6 +46,10 @@ if __name__ == "__main__":
             data = data.rename(columns={"id": "Participant"})
             # rename label column to Label
             data = data.rename(columns={"label": "Label"})
+
+            # convert float64 to float32
+            for col in data.select_dtypes(include=["float64"]).columns:
+                data[col] = data[col].astype(np.float32)
 
             # Save the dataset
             data.to_pickle(PATH_TO_DATASETS / "nurse" / "processed" / "no_features" / "all.pkl")

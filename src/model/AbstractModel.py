@@ -80,6 +80,6 @@ class AbstractModel(ABC):
             return 16
         else:
             if self._with_features:
-                return 12
+                return 16
             else:
                 return 16

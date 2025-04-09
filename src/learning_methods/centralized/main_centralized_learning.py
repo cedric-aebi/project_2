@@ -87,11 +87,11 @@ if __name__ == "__main__":
             df = df.sample(frac=1, random_state=42).reset_index(drop=True)
             train = df[df["Participant"] != participant_leave_out]
             test = df[df["Participant"] == participant_leave_out]
-            groups = train["Participant"]
-            x_train = train.drop(columns=["Participant", "Label"])
-            y_train = train["Label"]
-            x_test = test.drop(columns=["Participant", "Label"])
-            y_test = test["Label"]
+            groups = train["Participant"].values
+            x_train = train.drop(columns=["Participant", "Label"]).values
+            y_train = train["Label"].values
+            x_test = test.drop(columns=["Participant", "Label"]).values
+            y_test = test["Label"].values
 
             # 1. Initialize model, scaler and resampler
             scaler = utils.get_scaler(method=scaling_method)

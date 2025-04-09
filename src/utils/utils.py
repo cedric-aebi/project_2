@@ -46,7 +46,7 @@ def load_data(dataset: Dataset, with_features: bool, which: str | NurseParticipa
     PATH_TO_DATASETS = Path(__file__).parent.parent.parent / "datasets"
     if dataset == Dataset.NURSE:
         if with_features:
-            df = pd.read_pickle(PATH_TO_DATASETS / "nurse" / "processed" / "with_features" / "reduced" / f"{which}.pkl")
+            df = pd.read_pickle(PATH_TO_DATASETS / "nurse" / "processed" / "with_features" / f"{which}.pkl")
         else:
             df = pd.read_pickle(PATH_TO_DATASETS / "nurse" / "processed" / "no_features" / f"{which}.pkl")
     elif dataset == Dataset.STRESS:

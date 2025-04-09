@@ -81,14 +81,14 @@ if __name__ == "__main__":
                 continue
 
             window_length = 1920  # 60s at 32Hz
-            step_size = 8
+            step_size = 1920  # 60s at 32Hz
 
-            eda_windows = feature_service.get_windows(segment_df["EDA"].values, window_length, 8)
-            temp_windows = feature_service.get_windows(segment_df["TEMP"].values, window_length, 8)
-            hr_windows = feature_service.get_windows(segment_df["HR"].values, window_length, 8)
-            acc_x_windows = feature_service.get_windows(segment_df["X"].values, window_length, 8)
-            acc_y_windows = feature_service.get_windows(segment_df["Y"].values, window_length, 8)
-            acc_z_windows = feature_service.get_windows(segment_df["Z"].values, window_length, 8)
+            eda_windows = feature_service.get_windows(segment_df["EDA"].values, window_length, step_size)
+            temp_windows = feature_service.get_windows(segment_df["TEMP"].values, window_length, step_size)
+            hr_windows = feature_service.get_windows(segment_df["HR"].values, window_length, step_size)
+            acc_x_windows = feature_service.get_windows(segment_df["X"].values, window_length, step_size)
+            acc_y_windows = feature_service.get_windows(segment_df["Y"].values, window_length, step_size)
+            acc_z_windows = feature_service.get_windows(segment_df["Z"].values, window_length, step_size)
 
             # Iterate over all the windows
             for i in tqdm(range(len(eda_windows)), desc=" Windows", position=2, leave=False):

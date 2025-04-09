@@ -77,11 +77,11 @@ if __name__ == "__main__":
             segment_df = participant_df[participant_df["segment_id"] == segment_id]
             label = segment_df["label"].iloc[0]
 
-            if len(segment_df) < 1920:
+            if len(segment_df) < 960:  # 30s at 32Hz
                 continue
 
-            window_length = 1920  # 60s at 32Hz
-            step_size = 1920  # 60s at 32Hz
+            window_length = 960  # 30s at 32Hz
+            step_size = 960  # 30s at 32Hz
 
             eda_windows = feature_service.get_windows(segment_df["EDA"].values, window_length, step_size)
             temp_windows = feature_service.get_windows(segment_df["TEMP"].values, window_length, step_size)

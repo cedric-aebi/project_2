@@ -14,7 +14,7 @@ import tensorflow as tf
 from imblearn.base import BaseSampler
 from scikeras.wrappers import KerasClassifier
 from sklearn.base import BaseEstimator
-from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, StratifiedKFold
+from sklearn.model_selection import GridSearchCV, StratifiedKFold, LeaveOneGroupOut
 
 from model.AbstractModel import AbstractModel
 
@@ -65,14 +65,13 @@ class ShallowNNModel(AbstractModel):
         self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict, groups: pd.DataFrame | None = None
     ) -> None:
         if groups is not None:
-            cv = StratifiedGroupKFold(n_splits=len(set(groups)), shuffle=True, random_state=42)
+            cv = LeaveOneGroupOut()
             self._grid_search_cv = GridSearchCV(
                 estimator=self._pipeline,
                 param_grid=self._hyperparameter_grid,
                 cv=cv,
                 n_jobs=self._get_number_of_jobs(),
                 verbose=2,
-                scoring="f1_weighted",
             )
             self._grid_search_cv.fit(x_train, y_train, groups=groups)
         else:
@@ -83,7 +82,6 @@ class ShallowNNModel(AbstractModel):
                 cv=cv,
                 n_jobs=self._get_number_of_jobs(),
                 verbose=2,
-                scoring="f1_weighted",
             )
             self._grid_search_cv.fit(x_train, y_train)
         self._best_estimator = self._grid_search_cv.best_estimator_

@@ -81,7 +81,7 @@ if __name__ == "__main__":
                 continue
 
             window_length = 960  # 30s at 32Hz
-            step_size = 960  # 30s at 32Hz
+            step_size = 32  # 1s at 32Hz
 
             eda_windows = feature_service.get_windows(segment_df["EDA"].values, window_length, step_size)
             temp_windows = feature_service.get_windows(segment_df["TEMP"].values, window_length, step_size)

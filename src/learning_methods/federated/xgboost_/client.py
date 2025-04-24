@@ -1,10 +1,13 @@
-# Define Flower Client and client_fn
 import xgboost as xgb
-from flwr.client import Client, ClientApp
+from flwr.client import Client
 from flwr.common import FitIns, FitRes, Status, Code, Parameters, EvaluateIns, EvaluateRes, Context
-from flwr.common.config import unflatten_dict
+from sklearn.metrics import f1_score
 
-from learning_methods.federated.xgboost_.task import replace_keys, load_data
+from enums.Participant import NurseParticipant
+from enums.ResamplingMethod import ResamplingMethod
+from enums.ScalingMethod import ScalingMethod
+from learning_methods.federated.xgboost_.task import load_data, evaluate
+from service.exportservice.ExportService import ExportService
 
 
 class FlowerClient(Client):
@@ -16,6 +19,10 @@ class FlowerClient(Client):
         num_val,
         num_local_round,
         params,
+        participant,
+        mongo_id: str,
+        run_index: int,
+        database: str,
     ):
         self.train_dmatrix = train_dmatrix
         self.valid_dmatrix = valid_dmatrix
@@ -23,6 +30,10 @@ class FlowerClient(Client):
         self.num_val = num_val
         self.num_local_round = num_local_round
         self.params = params
+        self.participant = participant
+        self.mongo_id = mongo_id
+        self.run_index = run_index
+        self.export_service = ExportService(collection="federated", database=database)
 
     def _local_boost(self, bst_input):
         # Update trees based on local training data.
@@ -34,6 +45,12 @@ class FlowerClient(Client):
 
         return bst
 
+    def custom_f1_score(self, preds, dmatrix):
+        labels = dmatrix.get_label()
+        preds_class = (preds > 0.5).astype(int)
+        f1 = f1_score(labels, preds_class)
+        return "f1", f1
+
     def fit(self, ins: FitIns) -> FitRes:
         global_round = int(ins.config["global_round"])
         if global_round == 1:
@@ -42,6 +59,7 @@ class FlowerClient(Client):
                 self.params,
                 self.train_dmatrix,
                 num_boost_round=self.num_local_round,
+                custom_metric=self.custom_f1_score,
                 evals=[(self.valid_dmatrix, "validate"), (self.train_dmatrix, "train")],
             )
         else:
@@ -70,16 +88,31 @@ class FlowerClient(Client):
 
     def evaluate(self, ins: EvaluateIns) -> EvaluateRes:
         # Load global model
+        global_round = int(ins.config["global_round"])
         bst = xgb.Booster(params=self.params)
         para_b = bytearray(ins.parameters.tensors[0])
         bst.load_model(para_b)
 
-        # Run evaluation
-        eval_results = bst.eval_set(
-            evals=[(self.valid_dmatrix, "valid")],
-            iteration=bst.num_boosted_rounds() - 1,
+        preds_train = bst.predict(self.train_dmatrix)
+        y_true_train = self.train_dmatrix.get_label()
+        y_pred_train = (preds_train > 0.5).astype(int)
+        scores_train, _ = evaluate(pred=y_pred_train, y_true=y_true_train)
+
+        preds_test = bst.predict(self.valid_dmatrix)
+        y_true_test = self.valid_dmatrix.get_label()
+        y_pred_test = (preds_test > 0.5).astype(int)
+        scores_test, _ = evaluate(pred=y_pred_test, y_true=y_true_test)
+
+        scores = {"training_set": scores_train, "testing_set": scores_test}
+
+        self.export_service.update_run(
+            run_id=self.mongo_id,
+            set_dict={
+                "$set": {
+                    f"training_runs.{self.run_index}.clients.{self.participant}.round.{str(global_round)}.scores": scores
+                }
+            },
         )
-        auc = round(float(eval_results.split("\t")[1].split(":")[1]), 4)
 
         return EvaluateRes(
             status=Status(
@@ -88,30 +121,43 @@ class FlowerClient(Client):
             ),
             loss=0.0,
             num_examples=self.num_val,
-            metrics={"AUC": auc},
+            metrics={"f1": round(scores_test["f1"], 4), "server_round": global_round},
         )
 
 
-def client_fn(context: Context):
-    # Load model and data
-    partition_id = context.node_config["partition-id"]
-    train_dmatrix, valid_dmatrix, num_train, num_val = load_data(partition_id)
+def get_client_fn(
+    cfg: dict,
+    mongo_id: str,
+    run_index: int,
+    scaling_method: ScalingMethod | None,
+    resampling_method: ResamplingMethod | None,
+    database: str,
+    participant_leave_out: NurseParticipant,
+):
+    def client_fn(context: Context):
+        # Load model and data
+        partition_id = context.node_config["partition-id"]
+        train_dmatrix, valid_dmatrix, num_train, num_val, participant = load_data(
+            which=partition_id,
+            scaling_method=scaling_method,
+            resampling_method=resampling_method,
+            participant_leave_out=participant_leave_out,
+        )
 
-    cfg = replace_keys(unflatten_dict(context.run_config))
-    num_local_round = cfg["local_epochs"]
+        num_local_round = cfg["local_epochs"]
 
-    # Return Client instance
-    return FlowerClient(
-        train_dmatrix,
-        valid_dmatrix,
-        num_train,
-        num_val,
-        num_local_round,
-        cfg["params"],
-    )
+        # Return Client instance
+        return FlowerClient(
+            train_dmatrix=train_dmatrix,
+            valid_dmatrix=valid_dmatrix,
+            num_train=num_train,
+            num_val=num_val,
+            num_local_round=num_local_round,
+            params=cfg["params"],
+            participant=participant,
+            mongo_id=mongo_id,
+            run_index=run_index,
+            database=database,
+        )
 
-
-# Flower ClientApp
-app = ClientApp(
-    client_fn,
-)
+    return client_fn

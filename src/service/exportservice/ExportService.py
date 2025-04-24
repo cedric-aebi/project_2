@@ -15,8 +15,9 @@ from service.visualizationservice.VisualizationService import VisualizationServi
 
 class ExportService:
     def __init__(self, database: str | None = None, collection: str | None = None):
+        self.__collection = None
         if database is not None and collection is not None:
-            client = MongoClient("localhost", 27017)
+            client = MongoClient("localhost", 3011)
             db = client[database]
             self.__collection: Collection = db[collection]
 
@@ -25,7 +26,13 @@ class ExportService:
             raise ValueError("Collection not initialized.")
         return bool(self.__collection.find_one({"_id": run_id}))
 
-    def export_run_to_mongodb(self, run_info: dict) -> str | None:
+    def run_is_finished(self, run_id: str) -> bool:
+        if self.__collection is None:
+            raise ValueError("Collection not initialized.")
+        document = self.__collection.find_one({"_id": run_id})
+        return "finished" in document
+
+    def export_run_to_mongodb(self, run_info: dict) -> str:
         if self.__collection is None:
             raise ValueError("Collection not initialized.")
 
@@ -35,6 +42,17 @@ class ExportService:
             return run_info["_id"]
         else:
             print(f"Run with id {run_info['_id']} already exists. Not exporting.")
+            return run_info["_id"]
+
+    def update_run(self, run_id, set_dict: dict) -> None:
+        if self.__collection is None:
+            raise ValueError("Collection not initialized.")
+        self.__collection.update_one({"_id": run_id}, set_dict)
+
+    def get_run(self, run_id: str) -> dict:
+        if self.__collection is None:
+            raise ValueError("Collection not initialized.")
+        return self.__collection.find_one({"_id": run_id})
 
     def update_documents_with_average_scoring(self, collection: str) -> None:
         if self.__collection is None:

@@ -1,53 +1,109 @@
 import warnings
 from logging import INFO
 
+import numpy as np
 import pandas as pd
 from flwr.common import log
 import xgboost as xgb
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 
-from enums.Dataset import Dataset
 from enums.Participant import NurseParticipant
+from enums.ResamplingMethod import ResamplingMethod
+from enums.ScalingMethod import ScalingMethod
 from utils import utils
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
-DATASET = Dataset.NURSE
+from joblib import Memory
+
+memory = Memory(location="./cachedir", verbose=0)
 
 
-def load_data(which: int | str) -> tuple[xgb.DMatrix, xgb.DMatrix, int, int]:
+@memory.cache
+def load_data_cached(
+    which: int | str, scaling_method: ScalingMethod | None, resampling_method: ResamplingMethod | None
+):
+    return load_data(which=which, scaling_method=scaling_method, resampling_method=resampling_method)
+
+
+def load_data(
+    which: int | str | NurseParticipant,
+    scaling_method: ScalingMethod | None,
+    resampling_method: ResamplingMethod | None,
+    participant_leave_out: NurseParticipant | None = None,
+) -> tuple[xgb.DMatrix, xgb.DMatrix, int, int, str | NurseParticipant]:
+    if (participant_leave_out == NurseParticipant.n_DF and which == 10) or (
+        participant_leave_out == NurseParticipant.n_E4 and which == 11
+    ):
+        which = 12
     match which:
         case "all":
-            df = utils.load_data(which=which, with_features=True, dataset=DATASET)
+            df = pd.read_pickle("../../../datasets/nurse/paper/all.pkl")
+            participant = "server"
         case 0:
-            df = utils.load_data(which=NurseParticipant.n_15, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_15}.pkl")
+            participant = NurseParticipant.n_15
         case 1:
-            df = utils.load_data(which=NurseParticipant.n_5C, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_5C}.pkl")
+            participant = NurseParticipant.n_5C
         case 2:
-            df = utils.load_data(which=NurseParticipant.n_6B, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_6B}.pkl")
+            participant = NurseParticipant.n_6B
         case 3:
-            df = utils.load_data(which=NurseParticipant.n_6D, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_6D}.pkl")
+            participant = NurseParticipant.n_6D
         case 4:
-            df = utils.load_data(which=NurseParticipant.n_7A, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_7A}.pkl")
+            participant = NurseParticipant.n_7A
         case 5:
-            df = utils.load_data(which=NurseParticipant.n_7E, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_7E}.pkl")
+            participant = NurseParticipant.n_7E
         case 6:
-            df = utils.load_data(which=NurseParticipant.n_8B, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_8B}.pkl")
+            participant = NurseParticipant.n_8B
         case 7:
-            df = utils.load_data(which=NurseParticipant.n_83, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_83}.pkl")
+            participant = NurseParticipant.n_83
         case 8:
-            df = utils.load_data(which=NurseParticipant.n_94, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_94}.pkl")
+            participant = NurseParticipant.n_94
         case 9:
-            df = utils.load_data(which=NurseParticipant.n_BG, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_BG}.pkl")
+            participant = NurseParticipant.n_BG
         case 10:
-            df = utils.load_data(which=NurseParticipant.n_DF, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_DF}.pkl")
+            participant = NurseParticipant.n_DF
         case 11:
-            df = utils.load_data(which=NurseParticipant.n_E4, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_E4}.pkl")
+            participant = NurseParticipant.n_E4
         case 12:
-            df = utils.load_data(which=NurseParticipant.n_F5, with_features=True, dataset=DATASET)
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_F5}.pkl")
+            participant = NurseParticipant.n_F5
+        case 13:
+            # NOT USED AT THE MOMENT
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_CE}.pkl")
+            participant = NurseParticipant.n_CE
+        case 14:
+            # NOT USED AT THE MOMENT
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_EG}.pkl")
+            participant = NurseParticipant.n_EG
         case _:
             raise ValueError("Invalid subject number")
+
+    x = df.drop(columns=["Label", "Participant"])
+    y = df["Label"]
+
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42, shuffle=True, stratify=y)
+
+    scaler = utils.get_scaler(method=scaling_method)
+    if scaler is not None:
+        x_train = scaler.fit_transform(x_train)
+        x_test = scaler.transform(x_test)
+
+    resampler = utils.get_resampler(method=resampling_method)
+    if resampler is not None:
+        x_train, y_train = resampler.fit_resample(x_train, y_train)
 
     num_train = len(x_train)
     num_test = len(x_test)
@@ -57,7 +113,7 @@ def load_data(which: int | str) -> tuple[xgb.DMatrix, xgb.DMatrix, int, int]:
     train_dmatrix = transform_dataset_to_dmatrix(x_train, y_train)
     test_dmatrix = transform_dataset_to_dmatrix(x_test, y_test)
 
-    return train_dmatrix, test_dmatrix, num_train, num_test
+    return train_dmatrix, test_dmatrix, num_train, num_test, participant
 
 
 def transform_dataset_to_dmatrix(x: pd.DataFrame, y: pd.DataFrame) -> xgb.DMatrix:
@@ -66,13 +122,34 @@ def transform_dataset_to_dmatrix(x: pd.DataFrame, y: pd.DataFrame) -> xgb.DMatri
     return new_data
 
 
-def replace_keys(input_dict, match="-", target="_"):
-    """Recursively replace match string with target string in dictionary keys."""
-    new_dict = {}
-    for key, value in input_dict.items():
-        new_key = key.replace(match, target)
-        if isinstance(value, dict):
-            new_dict[new_key] = replace_keys(value, match, target)
-        else:
-            new_dict[new_key] = value
-    return new_dict
+def evaluate(pred: pd.DataFrame | np.ndarray, y_true: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
+    scores = get_scores(pred=pred, y=y_true)
+    tp, tn, fp, fn = get_classification_results(cm=scores[4])
+    results = {
+        "accuracy": scores[0],
+        "recall": scores[1],
+        "precision": scores[2],
+        "f1": scores[3],
+        "confusion_matrix": {"tp": tp, "tn": tn, "fp": fp, "fn": fn},
+    }
+    # Return results and confusion matrix for later plotting
+    return results, scores[4]
+
+
+def get_scores(pred: pd.DataFrame, y: pd.DataFrame) -> tuple[float, float, float, float, pd.DataFrame]:
+    acc = accuracy_score(y_true=y, y_pred=pred)
+    rec = recall_score(y_true=y, y_pred=pred)
+    prec = precision_score(y_true=y, y_pred=pred)
+    f1 = f1_score(y_true=y, y_pred=pred)
+
+    cm = confusion_matrix(y_true=y, y_pred=pred)
+    return acc, rec, prec, f1, cm
+
+
+def get_classification_results(cm: pd.DataFrame) -> tuple[int, int, int, int]:
+    tp = int(cm[1][1])
+    tn = int(cm[0][0])
+    fp = int(cm[0][1])
+    fn = int(cm[1][0])
+
+    return tp, tn, fp, fn

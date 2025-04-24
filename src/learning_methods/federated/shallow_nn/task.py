@@ -1,20 +1,24 @@
 import os
 import warnings
-from pathlib import Path
 
 import keras
 import numpy as np
 import pandas as pd
-from imblearn.combine import SMOTEENN
-from imblearn.over_sampling import RandomOverSampler
 from keras.src.regularizers import L1L2
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 
-from service.dataservice.DataService import DataService
+from enums.Participant import NurseParticipant
+from enums.ResamplingMethod import ResamplingMethod
+from enums.ScalingMethod import ScalingMethod
+from utils import utils
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 warnings.simplefilter(action="ignore", category=FutureWarning)
+
+from joblib import Memory
+
+memory = Memory(location="./cachedir", verbose=0)
 
 
 def load_model(
@@ -35,12 +39,6 @@ def load_model(
         model.add(keras.layers.Dropout(dropout))
     if batch_normalization:
         model.add(keras.layers.BatchNormalization())
-    model.add(keras.layers.Dense(256, kernel_regularizer=L1L2() if regularization else None))
-    model.add(keras.layers.LeakyReLU())
-    if dropout is not None:
-        model.add(keras.layers.Dropout(dropout))
-    if batch_normalization:
-        model.add(keras.layers.BatchNormalization())
     model.add(keras.layers.Dense(128, kernel_regularizer=L1L2() if regularization else None))
     model.add(keras.layers.LeakyReLU())
     if dropout is not None:
@@ -53,7 +51,13 @@ def load_model(
         model.add(keras.layers.Dropout(dropout))
     if batch_normalization:
         model.add(keras.layers.BatchNormalization())
-    model.add(keras.layers.Dense(50, kernel_regularizer=L1L2() if regularization else None))
+    model.add(keras.layers.Dense(32, kernel_regularizer=L1L2() if regularization else None))
+    model.add(keras.layers.LeakyReLU())
+    if dropout is not None:
+        model.add(keras.layers.Dropout(dropout))
+    if batch_normalization:
+        model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.Dense(16, kernel_regularizer=L1L2() if regularization else None))
     model.add(keras.layers.LeakyReLU())
 
     model.add(keras.layers.Dense(1, activation="sigmoid"))
@@ -72,64 +76,122 @@ def load_model(
     return model
 
 
-dataset = pd.read_csv(Path(__file__).parent.parent.parent.parent / "nurse" / "merged_data.csv", low_memory=False)
-dataset = dataset.drop(columns=["datetime"])
-# Drop participants "CE" and "EG" due to lack of data
-dataset = dataset[~dataset["id"].isin(["CE", "EG"])]
-dataset.loc[dataset["label"] == 2, "label"] = 1
+@memory.cache
+def load_data_cached(
+    which: int | str, scaling_method: ScalingMethod | None, resampling_method: ResamplingMethod | None
+):
+    return load_data(which=which, scaling_method=scaling_method, resampling_method=resampling_method)
 
 
-def load_data(subject: int | str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    global dataset
-    # Train/test splitting
-    match subject:
+def load_data(
+    which: int | str,
+    scaling_method: ScalingMethod | None,
+    resampling_method: ResamplingMethod | None,
+    participant_leave_out: NurseParticipant | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, NurseParticipant | str]:
+    if (participant_leave_out == NurseParticipant.n_DF and which == 10) or (
+        participant_leave_out == NurseParticipant.n_E4 and which == 11
+    ):
+        which = 12
+    match which:
         case "all":
-            x = dataset.drop(columns=["id", "label"])
-            y = dataset["label"]
+            df = pd.read_pickle("../../../datasets/nurse/paper/all.pkl")
+            participant = "server"
         case 0:
-            x = dataset[dataset["id"] == "15"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "15"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_15}.pkl")
+            participant = NurseParticipant.n_15
         case 1:
-            x = dataset[dataset["id"] == "5C"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "5C"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_5C}.pkl")
+            participant = NurseParticipant.n_5C
         case 2:
-            x = dataset[dataset["id"] == "6B"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "6B"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_6B}.pkl")
+            participant = NurseParticipant.n_6B
         case 3:
-            x = dataset[dataset["id"] == "6D"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "6D"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_6D}.pkl")
+            participant = NurseParticipant.n_6D
         case 4:
-            x = dataset[dataset["id"] == "7A"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "7A"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_7A}.pkl")
+            participant = NurseParticipant.n_7A
         case 5:
-            x = dataset[dataset["id"] == "7E"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "7E"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_7E}.pkl")
+            participant = NurseParticipant.n_7E
         case 6:
-            x = dataset[dataset["id"] == "8B"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "8B"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_8B}.pkl")
+            participant = NurseParticipant.n_8B
         case 7:
-            x = dataset[dataset["id"] == "83"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "83"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_83}.pkl")
+            participant = NurseParticipant.n_83
         case 8:
-            x = dataset[dataset["id"] == "94"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "94"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_94}.pkl")
+            participant = NurseParticipant.n_94
         case 9:
-            x = dataset[dataset["id"] == "BG"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "BG"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_BG}.pkl")
+            participant = NurseParticipant.n_BG
         case 10:
-            x = dataset[dataset["id"] == "DF"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "DF"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_DF}.pkl")
+            participant = NurseParticipant.n_DF
         case 11:
-            x = dataset[dataset["id"] == "E4"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "E4"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_E4}.pkl")
+            participant = NurseParticipant.n_E4
         case 12:
-            x = dataset[dataset["id"] == "F5"].drop(columns=["id", "label"])
-            y = dataset[dataset["id"] == "F5"]["label"]
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_F5}.pkl")
+            participant = NurseParticipant.n_F5
+        case 13:
+            # NOT USED AT THE MOMENT
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_CE}.pkl")
+            participant = NurseParticipant.n_CE
+        case 14:
+            # NOT USED AT THE MOMENT
+            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_EG}.pkl")
+            participant = NurseParticipant.n_EG
         case _:
             raise ValueError("Invalid subject number")
+
+    x = df.drop(columns=["Label", "Participant"])
+    y = df["Label"]
+
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42, shuffle=True, stratify=y)
 
-    # resampler = RandomOverSampler()
-    # x_train, y_train = resampler.fit_resample(x_train, y_train)
+    scaler = utils.get_scaler(method=scaling_method)
+    if scaler is not None:
+        x_train = scaler.fit_transform(x_train)
+        x_test = scaler.transform(x_test)
 
-    return x_train, x_test, y_train, y_test
+    resampler = utils.get_resampler(method=resampling_method)
+    if resampler is not None:
+        x_train, y_train = resampler.fit_resample(x_train, y_train)
+
+    return x_train, x_test, y_train, y_test, participant
+
+
+def evaluate(pred: pd.DataFrame | np.ndarray, y_true: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
+    scores = get_scores(pred=pred, y=y_true)
+    tp, tn, fp, fn = get_classification_results(cm=scores[4])
+    results = {
+        "accuracy": scores[0],
+        "recall": scores[1],
+        "precision": scores[2],
+        "f1": scores[3],
+        "confusion_matrix": {"tp": tp, "tn": tn, "fp": fp, "fn": fn},
+    }
+    # Return results and confusion matrix for later plotting
+    return results, scores[4]
+
+
+def get_scores(pred: pd.DataFrame, y: pd.DataFrame) -> tuple[float, float, float, float, pd.DataFrame]:
+    acc = accuracy_score(y_true=y, y_pred=pred)
+    rec = recall_score(y_true=y, y_pred=pred)
+    prec = precision_score(y_true=y, y_pred=pred)
+    f1 = f1_score(y_true=y, y_pred=pred)
+
+    cm = confusion_matrix(y_true=y, y_pred=pred)
+    return acc, rec, prec, f1, cm
+
+
+def get_classification_results(cm: pd.DataFrame) -> tuple[int, int, int, int]:
+    tp = int(cm[1][1])
+    tn = int(cm[0][0])
+    fp = int(cm[0][1])
+    fn = int(cm[1][0])
+
+    return tp, tn, fp, fn

@@ -3,8 +3,7 @@ from pathlib import Path
 import pandas as pd
 from imblearn.base import BaseSampler
 from imblearn.over_sampling import SMOTE, RandomOverSampler
-from imblearn.under_sampling import TomekLinks
-from sklearn.base import BaseEstimator
+from imblearn.under_sampling import RandomUnderSampler
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from enums.Dataset import Dataset
@@ -19,8 +18,8 @@ def get_resampler(method: ResamplingMethod | None) -> BaseSampler | None:
             resampler = SMOTE(random_state=42)
         case ResamplingMethod.OVERSAMPLING:
             resampler = RandomOverSampler(random_state=42)
-        case ResamplingMethod.TL:
-            resampler = TomekLinks()
+        case ResamplingMethod.UNDERSAMPLING:
+            resampler = RandomUnderSampler(random_state=42)
         case None:
             resampler = None
         case _:
@@ -29,7 +28,7 @@ def get_resampler(method: ResamplingMethod | None) -> BaseSampler | None:
     return resampler
 
 
-def get_scaler(method: ScalingMethod | None) -> BaseEstimator | None:
+def get_scaler(method: ScalingMethod | None) -> StandardScaler | MinMaxScaler | None:
     match method:
         case ScalingMethod.STANDARDSCALER:
             scaler = StandardScaler()

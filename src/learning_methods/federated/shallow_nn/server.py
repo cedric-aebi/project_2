@@ -1,13 +1,14 @@
-import joblib
-import numpy as np
 import pandas as pd
 from flwr.common import Context, Metrics
 from flwr.common import ndarrays_to_parameters
-from flwr.server import ServerConfig, ServerApp, ServerAppComponents
-from flwr.server.strategy import FedAvg, FedProx, FedAdam, FedAvgM
-from sklearn.metrics import f1_score
+from flwr.server import ServerConfig, ServerAppComponents
+from flwr.server.strategy import FedProx
 
-from task import load_model, load_data
+from utils import utils
+from enums.Participant import NurseParticipant
+from enums.ScalingMethod import ScalingMethod
+from learning_methods.federated.shallow_nn.task import load_model, evaluate
+from service.exportservice.ExportService import ExportService
 
 
 def gen_evaluate_fn(
@@ -19,10 +20,14 @@ def gen_evaluate_fn(
     batch_normalization: bool,
     regularization: bool,
     optimizer: str,
+    num_rounds: int,
+    mongo_id: str,
+    run_index: int,
+    export_service: ExportService,
 ):
     """Generate the function for centralized evaluation."""
 
-    def evaluate(server_round, parameters_ndarrays, config):
+    def evaluate_fn(server_round, parameters_ndarrays, config):
         """Evaluate global model on centralized test set."""
         model = load_model(
             dropout=dropout,
@@ -35,12 +40,26 @@ def gen_evaluate_fn(
         model.set_weights(parameters_ndarrays)
         loss, accuracy = model.evaluate(x_test, y_test, verbose=0)
         y_pred = model.predict(x_test)
-        f1 = f1_score(y_test, y_pred > 0.5)
+        y_pred = (y_pred > 0.5).astype(int)
 
-        joblib.dump(model, "model.pkl")
-        return loss, {"centralized_f1": f1}
+        scores_test, cm = evaluate(pred=y_pred, y_true=y_test)
+        scores_test["loss"] = loss
+        scores = {"testing_set": scores_test}
+        export_service.update_run(
+            run_id=mongo_id,
+            set_dict={
+                "$set": {
+                    f"training_runs.{run_index}.clients.server.centralized.round.{str(server_round)}.scores": scores
+                }
+            },
+        )
 
-    return evaluate
+        if server_round == num_rounds:
+            pass
+            # joblib.dump(model, "model.pkl")
+        return loss, {"centralized_f1": scores_test["f1"]}
+
+    return evaluate_fn
 
 
 def average(metrics: list[tuple[int, Metrics]]) -> Metrics:
@@ -51,62 +70,104 @@ def average(metrics: list[tuple[int, Metrics]]) -> Metrics:
     return {"f1": sum(f1_scores) / len(f1_scores)}
 
 
-def weighted_average(metrics: list[tuple[int, Metrics]]) -> Metrics:
-    # Multiply f1 of each client by number of examples used
-    f1_scores = [num_examples * m["f1"] for num_examples, m in metrics]
-    examples = [num_examples for num_examples, _ in metrics]
+def get_evaluate_metrics_aggregation_fn(mongo_id: str, run_index: int, export_service: ExportService):
+    def weighted_average(metrics: list[tuple[int, Metrics]]) -> Metrics:
+        # Multiply f1 of each client by number of examples used
+        server_round = metrics[0][1]["server_round"]
+        f1_scores = [num_examples * m["f1"] for num_examples, m in metrics]
+        examples = [num_examples for num_examples, _ in metrics]
 
-    # Aggregate and return custom metric (weighted average)
-    return {"f1": sum(f1_scores) / sum(examples)}
+        final_score = sum(f1_scores) / sum(examples)
+
+        export_service.update_run(
+            run_id=mongo_id,
+            set_dict={
+                "$set": {
+                    f"training_runs.{run_index}.clients.server.distributed.round.{str(server_round)}.scores": final_score
+                }
+            },
+        )
+
+        # Aggregate and return custom metric (weighted average)
+        return {"f1": final_score}
+
+    return weighted_average
 
 
-def server_fn(context: Context):
-    """Construct components that set the ServerApp behaviour."""
+def config_func(rnd: int) -> dict[str, str]:
+    """Return a configuration with global epochs."""
+    config = {
+        "global_round": str(rnd),
+    }
+    return config
 
-    regularization = context.run_config["regularization"]
-    learning_rate = context.run_config["learning-rate"]
-    optimizer = context.run_config["optimizer"]
-    batch_normalization = context.run_config["batch-normalization"]
-    dropout = None if context.run_config["dropout"] == False else context.run_config["dropout"]
 
-    x_train, x_test, y_train, y_test = load_data(subject="all")
+def get_server_fn(
+    cfg: dict,
+    mongo_id: str,
+    run_index: int,
+    participant_leave_out: NurseParticipant,
+    export_service: ExportService,
+    scaling_method: ScalingMethod | None,
+):
+    def server_fn(context: Context):
+        """Construct components that set the ServerApp behaviour."""
+        params = cfg["params"]
+        regularization = params["regularization"]
+        learning_rate = params["learning_rate"]
+        optimizer = params["optimizer"]
+        batch_normalization = params["batch_normalization"]
+        dropout = None if params["dropout"] == False else params["dropout"]
 
-    # Initialize model parameters
-    ndarrays = load_model(
-        dropout=dropout,
-        batch_normalization=batch_normalization,
-        regularization=regularization,
-        learning_rate=learning_rate,
-        optimizer=optimizer,
-        input_shape=x_train.shape[1],
-    ).get_weights()
-    parameters = ndarrays_to_parameters(ndarrays)
+        df = pd.read_pickle(f"../../../datasets/nurse/paper/{participant_leave_out}.pkl")
+        x = df.drop(columns=["Label", "Participant"])
+        y = df["Label"]
 
-    # Define the strategy
-    strategy = FedProx(
-        proximal_mu=0.9,
-        fraction_fit=context.run_config["fraction-fit"],
-        fraction_evaluate=1.0,
-        min_available_clients=13,
-        initial_parameters=parameters,
-        evaluate_fn=gen_evaluate_fn(
-            x_test=x_test,
-            y_test=y_test,
+        scaler = utils.get_scaler(method=scaling_method)
+        if scaler is not None:
+            x = scaler.fit_transform(x)
+
+        # Initialize model parameters
+        ndarrays = load_model(
             dropout=dropout,
             batch_normalization=batch_normalization,
             regularization=regularization,
             learning_rate=learning_rate,
             optimizer=optimizer,
-            input_shape=x_train.shape[1],
-        ),
-        evaluate_metrics_aggregation_fn=weighted_average,
-    )
-    # Read from config
-    num_rounds = context.run_config["num-server-rounds"]
-    config = ServerConfig(num_rounds=num_rounds)
+            input_shape=x.shape[1],
+        ).get_weights()
+        parameters = ndarrays_to_parameters(ndarrays)
 
-    return ServerAppComponents(strategy=strategy, config=config)
+        # Define the strategy
+        strategy = FedProx(
+            proximal_mu=0.1,
+            fraction_fit=cfg["fraction_fit"],
+            fraction_evaluate=cfg["fraction_evaluate"],
+            min_available_clients=cfg["min_available_clients"],
+            initial_parameters=parameters,
+            on_evaluate_config_fn=config_func,
+            on_fit_config_fn=config_func,
+            evaluate_fn=gen_evaluate_fn(
+                x_test=x,
+                y_test=y,
+                dropout=dropout,
+                batch_normalization=batch_normalization,
+                regularization=regularization,
+                learning_rate=learning_rate,
+                optimizer=optimizer,
+                input_shape=x.shape[1],
+                num_rounds=cfg["num_server_rounds"],
+                mongo_id=mongo_id,
+                run_index=run_index,
+                export_service=export_service,
+            ),
+            evaluate_metrics_aggregation_fn=get_evaluate_metrics_aggregation_fn(
+                mongo_id=mongo_id, run_index=run_index, export_service=export_service
+            ),
+        )
 
+        config = ServerConfig(num_rounds=cfg["num_server_rounds"])
 
-# Create ServerApp
-app = ServerApp(server_fn=server_fn)
+        return ServerAppComponents(strategy=strategy, config=config)
+
+    return server_fn

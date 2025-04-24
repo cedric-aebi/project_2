@@ -15,7 +15,7 @@ from learning_methods.federated.shallow_nn.client import get_client_fn as get_cl
 from service.exportservice.ExportService import ExportService
 
 NUM_SUPERNODES = 12
-NUM_SERVER_ROUNDS = 1
+NUM_SERVER_ROUNDS = 50
 XGBOOST_CONFIG = {
     "num_server_rounds": NUM_SERVER_ROUNDS,
     "fraction_fit": 1,
@@ -24,11 +24,11 @@ XGBOOST_CONFIG = {
     "params": {
         "objective": "binary:logistic",
         "eta": 0.01,
-        "max_depth": 8,
+        "max_depth": 12,
         "num_parallel_tree": 1,
         "subsample": 0.9,
         "colsample_bytree": 0.9,
-        "reg_alpha": 0.2,
+        "reg_alpha": 0.1,
         "tree_method": "hist",
     },
 }
@@ -41,7 +41,7 @@ NN_CONFIG = {
     "params": {
         "batch_size": 128,
         "learning_rate": 0.01,
-        "verbose": True,
+        "verbose": False,
         "optimizer": "sgd",
         "regularization": False,
         "batch_normalization": False,

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import joblib
 import pandas as pd
 from flwr.common import Context, Metrics
 from flwr.common import ndarrays_to_parameters
@@ -57,8 +58,14 @@ def gen_evaluate_fn(
         )
 
         if server_round == num_rounds:
-            pass
-            # joblib.dump(model, "model.pkl")
+            joblib.dump(
+                model,
+                Path(__file__).parent.parent.parent.parent.parent
+                / "results"
+                / "federated"
+                / "models"
+                / f"{mongo_id}_run_index_{run_index}_model.pkl",
+            )
         return loss, {"centralized_f1": scores_test["f1"]}
 
     return evaluate_fn

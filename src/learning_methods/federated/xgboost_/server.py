@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import joblib
 import pandas as pd
 import xgboost as xgb
 
@@ -45,9 +46,9 @@ def get_evaluate_fn(test_data, params, num_rounds, mongo_id, run_index, export_s
             )
 
             if server_round == num_rounds:
-                pass
-                # bst.save_model(f"./model_{mongo_id}.json")
-                # joblib.dump(params, f"./params_{mongo_id}.pkl")
+                base_path = Path(__file__).parent.parent.parent.parent.parent / "results" / "federated" / "models"
+                bst.save_model(base_path / f"{mongo_id}_run_index_{run_index}_model.json")
+                joblib.dump(params, base_path / f"{mongo_id}_run_index_{run_index}_params.pkl")
 
             return 0, {"f1": scores_test["f1"]}
 

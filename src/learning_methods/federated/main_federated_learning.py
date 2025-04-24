@@ -15,7 +15,7 @@ from learning_methods.federated.shallow_nn.client import get_client_fn as get_cl
 from service.exportservice.ExportService import ExportService
 
 NUM_SUPERNODES = 12
-NUM_SERVER_ROUNDS = 50
+NUM_SERVER_ROUNDS = 100
 XGBOOST_CONFIG = {
     "num_server_rounds": NUM_SERVER_ROUNDS,
     "fraction_fit": 1,

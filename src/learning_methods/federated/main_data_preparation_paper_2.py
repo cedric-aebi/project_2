@@ -1,8 +1,11 @@
+from pathlib import Path
+
 import pandas as pd
 
 
-if __name__ == '__main__':
-    original_df = pd.read_csv("../../../datasets/nurse/raw/nurse_no_features.csv", low_memory=False)
+if __name__ == "__main__":
+    base_path = Path(__file__).parent.parent.parent.parent / "datasets" / "nurse"
+    original_df = pd.read_csv(base_path / "raw" / "nurse_no_features.csv", low_memory=False)
     original_df = original_df[original_df["EDA"] != 0]
 
     new_df = original_df
@@ -23,8 +26,8 @@ if __name__ == '__main__':
     new_df = new_df.sample(frac=1, random_state=42).reset_index(drop=True)
 
     # Save the dataset
-    new_df.to_pickle("../../../datasets/nurse/paper/all.pkl")
+    new_df.to_pickle(base_path / "paper" / "all.pkl")
 
     for participant in new_df["Participant"].unique():
         participant_data = new_df[new_df["Participant"] == participant]
-        participant_data.to_pickle(f"../../../datasets/nurse/paper/{participant}.pkl")
+        participant_data.to_pickle(base_path / "paper" / f"{participant}.pkl")

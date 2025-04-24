@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 import xgboost as xgb
 
@@ -98,7 +100,13 @@ def get_server_fn(
         fraction_evaluate = cfg["fraction_evaluate"]
         params = cfg["params"]
 
-        df = pd.read_pickle(f"../../../datasets/nurse/paper/{participant_leave_out}.pkl")
+        df = pd.read_pickle(
+            Path(__file__).parent.parent.parent.parent.parent
+            / "datasets"
+            / "nurse"
+            / "paper"
+            / f"{participant_leave_out}.pkl"
+        )
         x = df.drop(columns=["Label", "Participant"])
         y = df["Label"]
 

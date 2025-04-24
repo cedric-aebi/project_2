@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 from flwr.common import Context, Metrics
 from flwr.common import ndarrays_to_parameters
@@ -119,7 +121,13 @@ def get_server_fn(
         batch_normalization = params["batch_normalization"]
         dropout = None if params["dropout"] == False else params["dropout"]
 
-        df = pd.read_pickle(f"../../../datasets/nurse/paper/{participant_leave_out}.pkl")
+        df = pd.read_pickle(
+            Path(__file__).parent.parent.parent.parent.parent
+            / "datasets"
+            / "nurse"
+            / "paper"
+            / f"{participant_leave_out}.pkl"
+        )
         x = df.drop(columns=["Label", "Participant"])
         y = df["Label"]
 

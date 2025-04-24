@@ -1,5 +1,6 @@
 import warnings
 from logging import INFO
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -33,60 +34,62 @@ def load_data(
     resampling_method: ResamplingMethod | None,
     participant_leave_out: NurseParticipant | None = None,
 ) -> tuple[xgb.DMatrix, xgb.DMatrix, int, int, str | NurseParticipant]:
+    base_path = Path(__file__).parent.parent.parent.parent.parent / "datasets" / "nurse" / "paper"
+
     if (participant_leave_out == NurseParticipant.n_DF and which == 10) or (
         participant_leave_out == NurseParticipant.n_E4 and which == 11
     ):
         which = 12
     match which:
         case "all":
-            df = pd.read_pickle("../../../datasets/nurse/paper/all.pkl")
+            df = pd.read_pickle(base_path / "all.pkl")
             participant = "server"
         case 0:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_15}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_15}.pkl")
             participant = NurseParticipant.n_15
         case 1:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_5C}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_5C}.pkl")
             participant = NurseParticipant.n_5C
         case 2:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_6B}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_6B}.pkl")
             participant = NurseParticipant.n_6B
         case 3:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_6D}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_6D}.pkl")
             participant = NurseParticipant.n_6D
         case 4:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_7A}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_7A}.pkl")
             participant = NurseParticipant.n_7A
         case 5:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_7E}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_7E}.pkl")
             participant = NurseParticipant.n_7E
         case 6:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_8B}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_8B}.pkl")
             participant = NurseParticipant.n_8B
         case 7:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_83}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_83}.pkl")
             participant = NurseParticipant.n_83
         case 8:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_94}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_94}.pkl")
             participant = NurseParticipant.n_94
         case 9:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_BG}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_BG}.pkl")
             participant = NurseParticipant.n_BG
         case 10:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_DF}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_DF}.pkl")
             participant = NurseParticipant.n_DF
         case 11:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_E4}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_E4}.pkl")
             participant = NurseParticipant.n_E4
         case 12:
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_F5}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_F5}.pkl")
             participant = NurseParticipant.n_F5
         case 13:
             # NOT USED AT THE MOMENT
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_CE}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_CE}.pkl")
             participant = NurseParticipant.n_CE
         case 14:
             # NOT USED AT THE MOMENT
-            df = pd.read_pickle(f"../../../datasets/nurse/paper/{NurseParticipant.n_EG}.pkl")
+            df = pd.read_pickle(base_path / f"{NurseParticipant.n_EG}.pkl")
             participant = NurseParticipant.n_EG
         case _:
             raise ValueError("Invalid subject number")

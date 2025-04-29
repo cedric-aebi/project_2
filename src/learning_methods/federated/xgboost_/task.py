@@ -83,14 +83,6 @@ def load_data(
         case 12:
             df = pd.read_pickle(base_path / f"{NurseParticipant.n_F5}.pkl")
             participant = NurseParticipant.n_F5
-        case 13:
-            # NOT USED AT THE MOMENT
-            df = pd.read_pickle(base_path / f"{NurseParticipant.n_CE}.pkl")
-            participant = NurseParticipant.n_CE
-        case 14:
-            # NOT USED AT THE MOMENT
-            df = pd.read_pickle(base_path / f"{NurseParticipant.n_EG}.pkl")
-            participant = NurseParticipant.n_EG
         case _:
             raise ValueError("Invalid subject number")
 

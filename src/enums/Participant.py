@@ -12,10 +12,8 @@ class NurseParticipant(Enum):
     n_83 = "83"
     n_94 = "94"
     n_BG = "BG"
-    n_CE = "CE"
     n_DF = "DF"
     n_E4 = "E4"
-    n_EG = "EG"
     n_F5 = "F5"
 
     def __str__(self):

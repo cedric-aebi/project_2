@@ -619,3 +619,4 @@ _*/
 **/*.pkl
 datasets/
 **/*.joblib
+results/

@@ -40,6 +40,12 @@ def load_model(
         model.add(keras.layers.Dropout(dropout))
     if batch_normalization:
         model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.Dense(256, kernel_regularizer=L1L2() if regularization else None))
+    model.add(keras.layers.LeakyReLU())
+    if dropout is not None:
+        model.add(keras.layers.Dropout(dropout))
+    if batch_normalization:
+        model.add(keras.layers.BatchNormalization())
     model.add(keras.layers.Dense(128, kernel_regularizer=L1L2() if regularization else None))
     model.add(keras.layers.LeakyReLU())
     if dropout is not None:
@@ -52,13 +58,7 @@ def load_model(
         model.add(keras.layers.Dropout(dropout))
     if batch_normalization:
         model.add(keras.layers.BatchNormalization())
-    model.add(keras.layers.Dense(32, kernel_regularizer=L1L2() if regularization else None))
-    model.add(keras.layers.LeakyReLU())
-    if dropout is not None:
-        model.add(keras.layers.Dropout(dropout))
-    if batch_normalization:
-        model.add(keras.layers.BatchNormalization())
-    model.add(keras.layers.Dense(16, kernel_regularizer=L1L2() if regularization else None))
+    model.add(keras.layers.Dense(50, kernel_regularizer=L1L2() if regularization else None))
     model.add(keras.layers.LeakyReLU())
 
     model.add(keras.layers.Dense(1, activation="sigmoid"))

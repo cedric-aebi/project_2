@@ -4,6 +4,7 @@ from itertools import product
 from pathlib import Path
 
 import joblib
+import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from enums.Model import Model
@@ -15,24 +16,27 @@ from service.exportservice.ExportService import ExportService
 from utils import utils
 
 # ************************ DEFINE CONFIGURATION *****************************
-EXPORT_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individual" / "models"
+EXPORT_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individual" / "models" / "paper_2"
 # ***************************************************************************
 
 
 if __name__ == "__main__":
-    arg_service = ArgumentService(model=True, resampling=True, scaling=True, database=True, features=True, dataset=True)
+    arg_service = ArgumentService(
+        model=True, resampling=True, scaling=True, database=True, features=True, dataset=True, tiny=True
+    )
     models = arg_service.get_models()
     resampling_methods = arg_service.get_resampling_methods()
     scaling_methods = arg_service.get_scaling_methods()
     database = arg_service.get_database()
     features_list = arg_service.get_features()
     dataset = arg_service.get_dataset()
+    tiny_param = arg_service.get_tiny()
 
     export_service = ExportService(database=database, collection="individual")
 
     # Execute machine learning pipeline for each configured model
-    for model_enum, resampling_method, scaling_method, with_features in product(
-        models, resampling_methods, scaling_methods, features_list
+    for model_enum, resampling_method, scaling_method, with_features, tiny in product(
+        models, resampling_methods, scaling_methods, features_list, tiny_param
     ):
         # 1. Initialize dummy model for hash calculation
         match model_enum:
@@ -62,6 +66,7 @@ if __name__ == "__main__":
                 "scaling": {"method": scaling_method.value if scaling_method is not None else None},
             },
             "participants": [],
+            "tiny": tiny,
             "hyperparameters": dummy_model.get_hyperparameter_grid(),
         }
 
@@ -83,7 +88,9 @@ if __name__ == "__main__":
         for idx, participant in enumerate(utils.get_list_of_participants(dataset=dataset)):
             run_info["participants"].append({"participant": participant})
 
-            df = utils.load_data(dataset=dataset, which=participant, with_features=with_features)
+            df = pd.read_pickle(
+                Path(__file__).parent.parent.parent.parent / "datasets" / "nurse" / "paper" / f"{participant}.pkl"
+            )
             x = df.drop(columns=["Label", "Participant"])
             y = df["Label"]
             x_train, x_test, y_train, y_test = train_test_split(x, y, shuffle=True, random_state=42, stratify=y)
@@ -107,6 +114,7 @@ if __name__ == "__main__":
                         input_shape=x_train.shape[1],
                         dataset=dataset,
                         with_features=with_features,
+                        tiny=tiny,
                     )
                 case _:
                     raise Exception(f"Could not initialize model {model_enum.value} for config")

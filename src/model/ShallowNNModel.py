@@ -28,13 +28,14 @@ class ShallowNNModel(AbstractModel):
         dataset: Dataset,
         with_features: bool,
         centralized=False,
+        tiny: bool = False,
     ) -> None:
         tf.random.set_seed(42)
         keras.utils.set_random_seed(42)
         self._grid_search_cv = None
         hyperparameter_grid = {
             "clf__model__optimizer": ["adam"],
-            "clf__model__learning_rate": [0.01, 0.001, 0.0001],
+            "clf__model__learning_rate": [0.001],
             "clf__model__dropout": [None],
             "clf__model__batch_normalization": [False],
             "clf__model__regularization": [False],
@@ -46,7 +47,7 @@ class ShallowNNModel(AbstractModel):
             model=self._build_model,
             model__input_shape=input_shape,
             epochs=150 if dataset == Dataset.STRESS else 50,
-            batch_size=32 if dataset == Dataset.STRESS else 64,
+            batch_size=32 if dataset == Dataset.STRESS else 128,
             verbose=2,
             random_state=42,
             validation_split=0.0 if centralized else 0.2,

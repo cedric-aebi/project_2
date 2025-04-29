@@ -5,7 +5,7 @@ import pandas as pd
 from flwr.common import Context, Metrics
 from flwr.common import ndarrays_to_parameters
 from flwr.server import ServerConfig, ServerAppComponents
-from flwr.server.strategy import FedProx
+from flwr.server.strategy import FedAvg
 
 from utils import utils
 from enums.Participant import NurseParticipant
@@ -154,8 +154,7 @@ def get_server_fn(
         parameters = ndarrays_to_parameters(ndarrays)
 
         # Define the strategy
-        strategy = FedProx(
-            proximal_mu=0.1,
+        strategy = FedAvg(
             fraction_fit=cfg["fraction_fit"],
             fraction_evaluate=cfg["fraction_evaluate"],
             min_available_clients=cfg["min_available_clients"],

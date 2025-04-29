@@ -16,6 +16,7 @@ class ArgumentService:
         resampling: bool | None = None,
         scaling: bool | None = None,
         dataset: bool | None = None,
+        tiny: bool | None = None,
     ):
         parser = ArgumentParser()
         if database:
@@ -54,6 +55,14 @@ class ArgumentService:
                 "--dataset",
                 required=True,
                 help="One of: nurse or stress",
+            )
+        if tiny:
+            parser.add_argument(
+                "-t",
+                "--tiny",
+                nargs="+",
+                required=True,
+                help="One of: yes or no",
             )
         self.args = parser.parse_args()
 
@@ -135,3 +144,15 @@ class ArgumentService:
                 return Dataset.STRESS
             case _:
                 raise ValueError("Dataset not recognized")
+
+    def get_tiny(self) -> list[bool]:
+        tiny_list: list[bool] = []
+        for tiny in self.args.tiny:
+            match tiny:
+                case "yes":
+                    tiny_list.append(True)
+                case "no":
+                    tiny_list.append(False)
+                case _:
+                    raise ValueError("tiny param not recognized")
+        return tiny_list

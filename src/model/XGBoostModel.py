@@ -23,7 +23,7 @@ class XGBoostModel(AbstractModel):
         self._grid_search_cv = None
         self._dataset = dataset
         hyperparameter_grid = {
-            "clf__max_depth": [4, 6, 8, 10, 12],
+            "clf__max_depth": [6, 8],
         }
         super().__init__(
             clf=XGBClassifier(random_state=42),

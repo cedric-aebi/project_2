@@ -16,7 +16,7 @@ from service.exportservice.ExportService import ExportService
 from utils import utils
 
 # ************************ DEFINE CONFIGURATION *****************************
-EXPORT_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individual" / "models" / "paper_2"
+EXPORT_PATH = Path(__file__).parent.parent.parent.parent / "results" / "individual" / "models"
 # ***************************************************************************
 
 
@@ -38,25 +38,6 @@ if __name__ == "__main__":
     for model_enum, resampling_method, scaling_method, with_features, tiny in product(
         models, resampling_methods, scaling_methods, features_list, tiny_param
     ):
-        # 1. Initialize dummy model for hash calculation
-        match model_enum:
-            case Model.XGBOOST:
-                dummy_model = XGBoostModel(scaler=None, resampler=None, dataset=dataset, with_features=with_features)
-            case Model.LOGISTIC_REGRESSION:
-                dummy_model = LogisticRegressionModel(
-                    scaler=None, resampler=None, dataset=dataset, with_features=with_features
-                )
-            case Model.SHALLOW_NN:
-                dummy_model = ShallowNNModel(
-                    scaler=None,
-                    resampler=None,
-                    input_shape=0,
-                    dataset=dataset,
-                    with_features=with_features,
-                )
-            case _:
-                raise Exception(f"Could not initialize model {model_enum.value} for config")
-
         # 2. Create run configuration with the given parameters
         run_info = {
             "model": model_enum.value,
@@ -67,7 +48,6 @@ if __name__ == "__main__":
             },
             "participants": [],
             "tiny": tiny,
-            "hyperparameters": dummy_model.get_hyperparameter_grid(),
         }
 
         # 3. Create a has over the run_info dict and the current database and check if run already exists
@@ -81,8 +61,6 @@ if __name__ == "__main__":
 
         # 4. Set run id and fit the model on the centralized dataset
         run_info["_id"] = run_id
-
-        del dummy_model
 
         # 5. Fit models
         for idx, participant in enumerate(utils.get_list_of_participants(dataset=dataset)):
@@ -114,7 +92,6 @@ if __name__ == "__main__":
                         input_shape=x_train.shape[1],
                         dataset=dataset,
                         with_features=with_features,
-                        tiny=tiny,
                     )
                 case _:
                     raise Exception(f"Could not initialize model {model_enum.value} for config")

@@ -14,7 +14,6 @@ import tensorflow as tf
 from imblearn.base import BaseSampler
 from scikeras.wrappers import KerasClassifier
 from sklearn.base import BaseEstimator
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, LeaveOneGroupOut
 
 from model.AbstractModel import AbstractModel
 
@@ -28,18 +27,9 @@ class ShallowNNModel(AbstractModel):
         dataset: Dataset,
         with_features: bool,
         centralized=False,
-        tiny: bool = False,
     ) -> None:
         tf.random.set_seed(42)
         keras.utils.set_random_seed(42)
-        self._grid_search_cv = None
-        hyperparameter_grid = {
-            "clf__model__optimizer": ["adam"],
-            "clf__model__learning_rate": [0.001],
-            "clf__model__dropout": [None],
-            "clf__model__batch_normalization": [False],
-            "clf__model__regularization": [False],
-        }
         early_stopping_callback = keras.callbacks.EarlyStopping(
             patience=5, monitor="loss" if centralized else "val_loss", min_delta=0.001
         )
@@ -55,48 +45,21 @@ class ShallowNNModel(AbstractModel):
         )
         super().__init__(
             clf=clf,
-            hyperparameter_grid=hyperparameter_grid,
             scaler=scaler,
             resampler=resampler,
             dataset=dataset,
             with_features=with_features,
         )
 
-    def fit(
-        self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict, groups: pd.DataFrame | None = None
-    ) -> None:
-        if groups is not None:
-            cv = LeaveOneGroupOut()
-            self._grid_search_cv = GridSearchCV(
-                estimator=self._pipeline,
-                param_grid=self._hyperparameter_grid,
-                cv=cv,
-                n_jobs=self._get_number_of_jobs(),
-                verbose=2,
-            )
-            self._grid_search_cv.fit(x_train, y_train, groups=groups)
-        else:
-            cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-            self._grid_search_cv = GridSearchCV(
-                estimator=self._pipeline,
-                param_grid=self._hyperparameter_grid,
-                cv=cv,
-                n_jobs=self._get_number_of_jobs(),
-                verbose=2,
-            )
-            self._grid_search_cv.fit(x_train, y_train)
-        self._best_estimator = self._grid_search_cv.best_estimator_
-        run_info["cv_best_score"] = self._grid_search_cv.best_score_
-        run_info["cv_best_params"] = self._grid_search_cv.best_params_
+    def fit(self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict) -> None:
+        self._pipeline.fit(x_train, y_train)
 
     def predict(self, x: pd.DataFrame) -> pd.DataFrame:
-        return self._best_estimator.predict(x)
+        return self._pipeline.predict(x)
 
     @staticmethod
     def _build_model(
         input_shape: int,
-        optimizer: str,
-        learning_rate: float,
         dropout: float | None,
         batch_normalization: bool,
         regularization: bool,
@@ -135,18 +98,11 @@ class ShallowNNModel(AbstractModel):
         # Output layer with 1 neuron, sigmoid activation for binary classification
         model.add(keras.layers.Dense(1, activation="sigmoid"))
 
-        if optimizer == "adam":
-            optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
-        elif optimizer == "nadam":
-            optimizer = keras.optimizers.Nadam(learning_rate=learning_rate)
-        elif optimizer == "sgd":
-            optimizer = keras.optimizers.SGD(learning_rate=learning_rate)
-        else:
-            raise ValueError(f"Invalid optimizer: {optimizer}")
+        optimizer = keras.optimizers.Adam(learning_rate=0.001)
 
         model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=["accuracy"])
 
         return model
 
     def get_fitted_model(self) -> Pipeline:
-        return self._best_estimator
+        return self._pipeline

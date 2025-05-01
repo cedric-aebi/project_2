@@ -22,7 +22,12 @@ class ArgumentService:
         if database:
             parser.add_argument("-d", "--database", required=True)
         if collection:
-            parser.add_argument("-c", "--collection", required=True, help="One of: centralized, individual, federated")
+            parser.add_argument(
+                "-c",
+                "--collection",
+                required=True,
+                help="One of: centralized, individual, federated or federated_fine_tuned",
+            )
         if model:
             parser.add_argument(
                 "-m",
@@ -76,6 +81,8 @@ class ArgumentService:
             case "individual":
                 return self.args.collection
             case "federated":
+                return self.args.collection
+            case "federated_fine_tuned":
                 return self.args.collection
             case _:
                 raise ValueError("Collection not recognized")

@@ -22,6 +22,7 @@ if __name__ == "__main__":
     new_df = new_df.rename(columns={"id": "Participant"})
     # rename label column to Label
     new_df = new_df.rename(columns={"label": "Label"})
+
     # Shuffle
     new_df = new_df.sample(frac=1, random_state=42).reset_index(drop=True)
 

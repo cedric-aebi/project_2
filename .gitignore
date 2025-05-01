@@ -620,3 +620,4 @@ _*/
 datasets/
 **/*.joblib
 results/
+**/*.tflite

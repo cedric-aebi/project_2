@@ -17,24 +17,16 @@ class AbstractModel(ABC):
         with_features: bool,
         scaler: BaseEstimator | None,
         resampler: BaseSampler | None,
-        hyperparameter_grid: dict | None = None,
     ) -> None:
         self._dataset = dataset
         self._with_features = with_features
         self._clf = clf
-        self._hyperparameter_grid = hyperparameter_grid
         self._scaler = scaler
         self._resampler = resampler
         self._pipeline = Pipeline([("scaler", self._scaler), ("resampler", self._resampler), ("clf", self._clf)])
-        self._best_estimator = None
-
-    def get_hyperparameter_grid(self) -> dict | None:
-        return dict(sorted(self._hyperparameter_grid.items()))
 
     @abstractmethod
-    def fit(
-        self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict, groups: pd.DataFrame | None = None
-    ) -> None:
+    def fit(self, x_train: pd.DataFrame, y_train: pd.DataFrame, run_info: dict) -> None:
         pass
 
     @abstractmethod

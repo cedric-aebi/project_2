@@ -17,7 +17,7 @@ class ExportService:
     def __init__(self, database: str | None = None, collection: str | None = None):
         self.__collection = None
         if database is not None and collection is not None:
-            client = MongoClient("localhost", 3011)
+            client = MongoClient("localhost", 27017)
             db = client[database]
             self.__collection: Collection = db[collection]
 
@@ -77,10 +77,10 @@ class ExportService:
                         "mean_f1": statistics.fmean(f1s),
                     }
                     self.__collection.update_one({"_id": document["_id"]}, {"$set": document})
-            case "individual":
+            case "individual" | "federated_fine_tuned":
                 for document in documents:
                     accs, precs, recs, f1s = [], [], [], []
-                    for subject in document["subjects"]:
+                    for subject in document["participants"]:
                         accs.append(subject["scores"]["testing_set"]["accuracy"])
                         precs.append(subject["scores"]["testing_set"]["precision"])
                         recs.append(subject["scores"]["testing_set"]["recall"])
@@ -95,81 +95,38 @@ class ExportService:
 
                     self.__collection.update_one({"_id": document["_id"]}, {"$set": document})
             case "federated":
-                xboost_models = []
-                logistic_regression_models = []
-                dnn_models = []
                 for document in documents:
-                    if document["model"] == Model.XGBOOST.value and document["subject_nr"] != "server":
-                        xboost_models.append(document)
-                    if document["model"] == Model.LOGISTIC_REGRESSION.value and document["subject_nr"] != "server":
-                        logistic_regression_models.append(document)
-                    if document["model"] == Model.SHALLOW_NN.value and document["subject_nr"] != "server":
-                        dnn_models.append(document)
+                    server_accs, server_precs, server_recs, server_f1s = [], [], [], []
+                    client_f1s = []
+                    training_runs = document["training_runs"]
+                    for run in training_runs:
+                        clients = run["clients"]
+                        server = clients["server"]
 
-                # XBoost Models average
-                accs, precs, recs, f1s = [], [], [], []
-                for document in xboost_models:
-                    accs.append(document["rounds"][-1]["testing_set"]["accuracy"])
-                    precs.append(document["rounds"][-1]["testing_set"]["precision"])
-                    recs.append(document["rounds"][-1]["testing_set"]["recall"])
-                    f1s.append(document["rounds"][-1]["testing_set"]["f1"])
+                        distributed_rounds = [r for r in server["distributed"]["round"].values()]
+                        distributed_f1 = distributed_rounds[-1]["scores"]
+                        client_f1s.append(distributed_f1)
 
-                document_to_insert = {
-                    "model": xboost_models[0]["model"],
-                    "subject_nr": "average",
-                    "pre-processing": xboost_models[0]["pre-processing"],
-                    "params": xboost_models[0]["params"],
-                    "average_scoring": {
-                        "mean_accuracy": statistics.fmean(accs),
-                        "mean_precision": statistics.fmean(precs),
-                        "mean_recall": statistics.fmean(recs),
-                        "mean_f1": statistics.fmean(f1s),
-                    },
-                }
-                self.__collection.insert_one(document_to_insert)
+                        centralized_rounds = [r for r in server["centralized"]["round"].values()]
+                        centralized_f1 = centralized_rounds[-1]["scores"]["testing_set"]["f1"]
+                        centralized_acc = centralized_rounds[-1]["scores"]["testing_set"]["accuracy"]
+                        centralized_prec = centralized_rounds[-1]["scores"]["testing_set"]["precision"]
+                        centralized_rec = centralized_rounds[-1]["scores"]["testing_set"]["recall"]
+                        server_f1s.append(centralized_f1)
+                        server_accs.append(centralized_acc)
+                        server_precs.append(centralized_prec)
+                        server_recs.append(centralized_rec)
 
-                # Logistic Regression Models average
-                accs, precs, recs, f1s = [], [], [], []
-                for document in logistic_regression_models:
-                    accs.append(document["rounds"][-1]["testing_set"]["accuracy"])
-                    precs.append(document["rounds"][-1]["testing_set"]["precision"])
-                    recs.append(document["rounds"][-1]["testing_set"]["recall"])
-                    f1s.append(document["rounds"][-1]["testing_set"]["f1"])
-
-                document_to_insert = {
-                    "model": logistic_regression_models[0]["model"],
-                    "subject_nr": "average",
-                    "pre-processing": logistic_regression_models[0]["pre-processing"],
-                    "params": logistic_regression_models[0]["params"],
-                    "average_scoring": {
-                        "mean_accuracy": statistics.fmean(accs),
-                        "mean_precision": statistics.fmean(precs),
-                        "mean_recall": statistics.fmean(recs),
-                        "mean_f1": statistics.fmean(f1s),
-                    },
-                }
-                self.__collection.insert_one(document_to_insert)
-
-                # DNN Models average
-                accs, precs, recs, f1s = [], [], [], []
-                for document in dnn_models:
-                    accs.append(document["rounds"][-1]["testing_set"]["accuracy"])
-                    precs.append(document["rounds"][-1]["testing_set"]["precision"])
-                    recs.append(document["rounds"][-1]["testing_set"]["recall"])
-                    f1s.append(document["rounds"][-1]["testing_set"]["f1"])
-
-                document_to_insert = {
-                    "model": dnn_models[0]["model"],
-                    "subject_nr": "average",
-                    "pre-processing": dnn_models[0]["pre-processing"],
-                    "average_scoring": {
-                        "mean_accuracy": statistics.fmean(accs),
-                        "mean_precision": statistics.fmean(precs),
-                        "mean_recall": statistics.fmean(recs),
-                        "mean_f1": statistics.fmean(f1s),
-                    },
-                }
-                self.__collection.insert_one(document_to_insert)
+                    document["average_client_scoring"] = {
+                        "mean_f1": statistics.fmean(client_f1s),
+                    }
+                    document["average_server_scoring"] = {
+                        "mean_accuracy": statistics.fmean(server_accs),
+                        "mean_precision": statistics.fmean(server_precs),
+                        "mean_recall": statistics.fmean(server_recs),
+                        "mean_f1": statistics.fmean(server_f1s),
+                    }
+                    self.__collection.update_one({"_id": document["_id"]}, {"$set": document})
 
     def export_results_to_csv(self, collection: str, model: Model, base_path: Path) -> None:
         if self.__collection is None:

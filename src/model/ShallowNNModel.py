@@ -36,6 +36,9 @@ class ShallowNNModel(AbstractModel):
         clf = KerasClassifier(
             model=self._build_model,
             model__input_shape=input_shape,
+            model__dropout=None,
+            model__batch_normalization=False,
+            model__regularization=False,
             epochs=150 if dataset == Dataset.STRESS else 50,
             batch_size=32 if dataset == Dataset.STRESS else 128,
             verbose=2,

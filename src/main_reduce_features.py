@@ -7,8 +7,9 @@ from sklearn.model_selection import LeaveOneGroupOut
 from enums.Dataset import Dataset
 from utils import utils
 
+# TODO: Maybe remove if not used
 if __name__ == "__main__":
-    dataset = Dataset.NURSE
+    dataset = Dataset.STRESS
 
     df = utils.load_data(dataset=dataset, which="all", with_features=True)
 

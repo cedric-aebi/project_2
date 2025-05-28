@@ -1,131 +1,114 @@
 import warnings
-from pathlib import Path
+from typing import Callable
 
-import flwr as fl
-from imblearn.over_sampling import RandomOverSampler
-from pymongo import MongoClient
-from pymongo.collection import Collection
+from flwr.client import NumPyClient
+from flwr.common import Context
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss
-from sklearn.preprocessing import StandardScaler
 
-from enums.Model import Model
+from enums.Participant import NurseParticipant
 from enums.ResamplingMethod import ResamplingMethod
 from enums.ScalingMethod import ScalingMethod
-from learning_methods.federated.logistic_regression import utils
-from service.dataservice.DataService import DataService
+from learning_methods.federated.logistic_regression.task import (
+    create_log_reg_and_instantiate_parameters,
+    set_model_params,
+    get_model_parameters,
+    load_data,
+    evaluate,
+)
 from service.exportservice.ExportService import ExportService
 
 
-class Client:
-    def __init__(self, subject_nr: int, number_of_rounds: int, base_path: Path):
-        self._subject_nr = subject_nr
-        self._number_of_rounds = number_of_rounds
-        self._base_path = base_path
-
-    def start(self) -> None:
-        # Start Flower client
-        print("Starting client...")
-        fl.client.start_client(
-            server_address="0.0.0.0:8080",
-            client=StressClient(
-                subject_nr=self._subject_nr, number_of_rounds=self._number_of_rounds, base_path=self._base_path
-            ).to_client(),
-        )
-
-
 # Define Flower client
-class StressClient(fl.client.NumPyClient):
-    def __init__(self, subject_nr: int, number_of_rounds: int, base_path: Path):
-        dataset_service = DataService()
-        self._export_service = ExportService(database="project_2_windows", collection="federated")
+class FlowerClient(NumPyClient):
+    def __init__(
+        self, model: LogisticRegression, data: tuple, participant, mongo_id: str, run_index: int, database: str
+    ):
+        self.model = model
+        self.mongo_id = mongo_id
+        self.run_index = run_index
+        self.participant = participant
+        self.x_train, self.x_test, self.y_train, self.y_test = data
+        self.export_service = ExportService(collection="federated", database=database)
 
-        self._subject_nr = subject_nr
-        self._number_of_rounds = number_of_rounds
-        self._base_path = base_path
-
-        self._collection: Collection = MongoClient().project_2_windows.federated
-        params = {"C": 1000, "solver": "liblinear", "penalty": "l1"}
-        self._mongo_dict = {
-            "subject_nr": subject_nr,
-            "model": Model.LOGISTIC_REGRESSION,
-            "pre-processing": {
-                "resampling": {"method": ResamplingMethod.OVERSAMPLING},
-                "scaling": {"method": ScalingMethod.STANDARDSCALER},
-            },
-            "params": params,
-            "rounds": [],
-        }
-        self._mongo_id = self._collection.insert_one(self._mongo_dict).inserted_id
-        self._x_train = dataset_service.load_training_features(which=subject_nr).to_numpy()
-        self._x_test = dataset_service.load_testing_features(which=subject_nr).to_numpy()
-        self._y_train = dataset_service.load_training_labels(which=subject_nr).to_numpy()
-        self._y_test = dataset_service.load_testing_labels(which=subject_nr).to_numpy()
-
-        # Replicate best performing pre-processing from centralized run
-        scaler = StandardScaler()
-        self._x_train = scaler.fit_transform(X=self._x_train)
-        self._x_test = scaler.transform(X=self._x_test)
-        resampler = RandomOverSampler(random_state=42)
-        self._x_train, self._y_train = resampler.fit_resample(X=self._x_train, y=self._y_train)
-
-        # Define best performing model from centralized run
-        self._model = LogisticRegression(
-            random_state=42,
-            C=params["C"],
-            solver=params["solver"],
-            penalty=params["penalty"],
-            max_iter=1,
-            warm_start=True,
-        )
-
-        # Setting initial parameters, akin to model.compile for keras models
-        utils.set_initial_params(self._model)
-
-    def get_parameters(self, config):  # type: ignore
-        return utils.get_model_parameters(self._model)
-
-    def fit(self, parameters, config):  # type: ignore
-        utils.set_model_params(self._model, parameters)
+    def fit(self, parameters, config):
+        set_model_params(self.model, parameters)
         # Ignore convergence failure due to low local epochs
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            self._model.fit(self._x_train, self._y_train)
-        print(f"Training finished for round {config['rnd']}")
+            self.model.fit(self.x_train, self.y_train)
+        return get_model_parameters(self.model), len(self.x_train), {}
 
-        return list(utils.get_model_parameters(self._model)), len(self._x_train), {}
+    def evaluate(self, parameters, config):
+        global_round = int(config["global_round"])
 
-    def evaluate(self, parameters, config):  # type: ignore
-        utils.set_model_params(self._model, parameters)
-        loss = log_loss(self._y_test, self._model.predict_proba(self._x_test))
-        accuracy = self._model.score(self._x_test, self._y_test)
-        print("Evaluate")
-        pred_train = self._model.predict(self._x_train)
-        scores_train, _ = utils.evaluate_prediction(pred=pred_train, y_true=self._y_train)
-        pred_test = self._model.predict(self._x_test)
-        scores_test, cm = utils.evaluate_prediction(pred=pred_test, y_true=self._y_test)
+        set_model_params(self.model, parameters)
+
+        training_loss = log_loss(self.y_train, self.model.predict_proba(self.x_train))
+        test_loss = log_loss(self.y_test, self.model.predict_proba(self.x_test))
+
+        y_pred_train = self.model.predict(self.x_train)
+        y_pred_train = (y_pred_train > 0.5).astype(int)
+        scores_train, _ = evaluate(pred=y_pred_train, y_true=self.y_train)
+        scores_train["loss"] = training_loss
+
+        y_pred_test = self.model.predict(self.x_test)
+        y_pred_test = (y_pred_test > 0.5).astype(int)
+        scores_test, _ = evaluate(pred=y_pred_test, y_true=self.y_test)
+        scores_test["loss"] = test_loss
 
         scores = {"training_set": scores_train, "testing_set": scores_test}
-        self._mongo_dict["rounds"].append(scores)
 
-        self._collection.replace_one({"_id": self._mongo_id}, self._mongo_dict)
+        self.export_service.update_run(
+            run_id=self.mongo_id,
+            set_dict={
+                "$set": {
+                    f"training_runs.{self.run_index}.clients.{self.participant}.round.{str(global_round)}.scores": scores
+                }
+            },
+        )
 
-        # If last round export plots of final model
-        if config["rnd"] == self._number_of_rounds:
-            self._export_service.export_confusion_matrix_display(
-                cm=cm,
-                labels=["No-Stress", "Stress"],
-                mongo_id=str(self._mongo_id),
-                path=self._base_path,
-                which=self._subject_nr,
-            )
-            self._export_service.export_roc_display(
-                mongo_id=str(self._mongo_id),
-                x_test=self._x_test,
-                y_test=self._y_test,
-                path=self._base_path,
-                model=self._model,
-                which=self._subject_nr,
-            )
+        return test_loss, len(self.x_test), {"f1": scores_test["f1"], "server_round": global_round}
 
-        return loss, len(self._x_test), {"accuracy": accuracy}
+
+def get_client_fn(
+    cfg: dict,
+    mongo_id: str,
+    run_index: int,
+    scaling_method: ScalingMethod | None,
+    resampling_method: ResamplingMethod | None,
+    database: str,
+    participant_leave_out: NurseParticipant,
+) -> Callable:
+    def client_fn(context: Context):
+        """Construct a Client that will be run in a ClientApp."""
+
+        # Read the node_config to fetch data partition associated to this node
+        partition_id = context.node_config["partition-id"]
+        x_train, x_test, y_train, y_test, participant = load_data(
+            which=partition_id,
+            scaling_method=scaling_method,
+            resampling_method=resampling_method,
+            participant_leave_out=participant_leave_out,
+        )
+
+        # Read run_config to fetch hyperparameters relevant to this run
+        params = cfg["params"]
+        penalty = params["penalty"]
+        max_iter = params["max_iter"]
+
+        model = create_log_reg_and_instantiate_parameters(
+            penalty=penalty, max_iter=max_iter, num_features=x_train.shape[1]
+        )
+
+        # Return Client instance
+        return FlowerClient(
+            model=model,
+            data=(x_train, x_test, y_train, y_test),
+            participant=participant,
+            mongo_id=mongo_id,
+            run_index=run_index,
+            database=database,
+        ).to_client()
+
+    return client_fn

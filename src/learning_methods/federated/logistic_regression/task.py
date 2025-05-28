@@ -1,11 +1,9 @@
-import os
-import warnings
 from pathlib import Path
 
-import keras
 import numpy as np
 import pandas as pd
-from keras.src.regularizers import L1L2
+from flwr.common import NDArrays
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 
@@ -14,74 +12,55 @@ from enums.ResamplingMethod import ResamplingMethod
 from enums.ScalingMethod import ScalingMethod
 from utils import utils
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-warnings.simplefilter(action="ignore", category=FutureWarning)
-
-from joblib import Memory
-
-memory = Memory(location="./cachedir", verbose=0)
+# This information is needed to create a correct scikit-learn model
+NUM_UNIQUE_LABELS = 2
 
 
-def load_model(
-    input_shape: int,
-    learning_rate: float,
-    dropout: float | None,
-    batch_normalization: bool,
-    regularization: bool,
-    optimizer: str,
-) -> keras.Sequential:
-    # Define the model
-    model = keras.Sequential()
-    model.add(keras.layers.Input(shape=(input_shape,)))
-
-    model.add(keras.layers.Dense(512, kernel_regularizer=L1L2() if regularization else None))
-    model.add(keras.layers.LeakyReLU())
-    if dropout is not None:
-        model.add(keras.layers.Dropout(dropout))
-    if batch_normalization:
-        model.add(keras.layers.BatchNormalization())
-    model.add(keras.layers.Dense(256, kernel_regularizer=L1L2() if regularization else None))
-    model.add(keras.layers.LeakyReLU())
-    if dropout is not None:
-        model.add(keras.layers.Dropout(dropout))
-    if batch_normalization:
-        model.add(keras.layers.BatchNormalization())
-    model.add(keras.layers.Dense(128, kernel_regularizer=L1L2() if regularization else None))
-    model.add(keras.layers.LeakyReLU())
-    if dropout is not None:
-        model.add(keras.layers.Dropout(dropout))
-    if batch_normalization:
-        model.add(keras.layers.BatchNormalization())
-    model.add(keras.layers.Dense(64, kernel_regularizer=L1L2() if regularization else None))
-    model.add(keras.layers.LeakyReLU())
-    if dropout is not None:
-        model.add(keras.layers.Dropout(dropout))
-    if batch_normalization:
-        model.add(keras.layers.BatchNormalization())
-    model.add(keras.layers.Dense(50, kernel_regularizer=L1L2() if regularization else None))
-    model.add(keras.layers.LeakyReLU())
-
-    model.add(keras.layers.Dense(1, activation="sigmoid"))
-
-    if optimizer == "adam":
-        optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
-    elif optimizer == "nadam":
-        optimizer = keras.optimizers.Nadam(learning_rate=learning_rate)
-    elif optimizer == "sgd":
-        optimizer = keras.optimizers.SGD(learning_rate=learning_rate)
+def get_model_parameters(model: LogisticRegression) -> NDArrays:
+    """Returns the parameters of a sklearn LogisticRegression model."""
+    if model.fit_intercept:
+        params = [
+            model.coef_,
+            model.intercept_,
+        ]
     else:
-        raise ValueError(f"Invalid optimizer: {optimizer}")
+        params = [
+            model.coef_,
+        ]
+    return params
 
-    model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=["accuracy"])
 
+def set_model_params(model: LogisticRegression, params: NDArrays) -> None:
+    """Sets the parameters of a sklean LogisticRegression model."""
+    model.coef_ = params[0]
+    if model.fit_intercept:
+        model.intercept_ = params[1]
+
+
+def set_initial_params(model: LogisticRegression, num_features: int) -> None:
+    """Sets initial parameters as zeros Required since model params are uninitialized
+    until model.fit is called.
+
+    But server asks for initial parameters from clients at launch. Refer to
+    sklearn.linear_model.LogisticRegression documentation for more information.
+    """
+    model.classes_ = np.arange(NUM_UNIQUE_LABELS)
+
+    model.coef_ = np.zeros((NUM_UNIQUE_LABELS, num_features))
+    if model.fit_intercept:
+        model.intercept_ = np.zeros((NUM_UNIQUE_LABELS,))
+
+
+def create_log_reg_and_instantiate_parameters(penalty: str, max_iter: int, num_features: int) -> LogisticRegression:
+    """Helper function to create a LogisticRegression model."""
+    model = LogisticRegression(
+        penalty=penalty,
+        max_iter=max_iter,  # local epoch
+        warm_start=True,  # prevent refreshing weights when fitting,
+    )
+    # Setting initial parameters, akin to model.compile for keras models
+    set_initial_params(model, num_features=num_features)
     return model
-
-
-@memory.cache
-def load_data_cached(
-    which: int | str, scaling_method: ScalingMethod | None, resampling_method: ResamplingMethod | None
-):
-    return load_data(which=which, scaling_method=scaling_method, resampling_method=resampling_method)
 
 
 def load_data(
@@ -89,7 +68,7 @@ def load_data(
     scaling_method: ScalingMethod | None,
     resampling_method: ResamplingMethod | None,
     participant_leave_out: NurseParticipant | None = None,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, NurseParticipant | str]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, NurseParticipant | str]:
     # TODO: rewrite
     base_path = Path(__file__).parent.parent.parent.parent.parent / "datasets" / "nurse" / "paper"
 

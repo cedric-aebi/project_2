@@ -71,14 +71,6 @@ def gen_evaluate_fn(
     return evaluate_fn
 
 
-def average(metrics: list[tuple[int, Metrics]]) -> Metrics:
-    # Extract f1 scores from metrics
-    f1_scores = [m["f1"] for _, m in metrics]
-
-    # Calculate and return the average f1 score
-    return {"f1": sum(f1_scores) / len(f1_scores)}
-
-
 def get_evaluate_metrics_aggregation_fn(mongo_id: str, run_index: int, export_service: ExportService):
     def weighted_average(metrics: list[tuple[int, Metrics]]) -> Metrics:
         # Multiply f1 of each client by number of examples used

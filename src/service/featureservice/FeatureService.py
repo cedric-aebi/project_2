@@ -27,14 +27,33 @@ class FeatureService:
                 else:
                     current_label = 0
 
-        # Don't forget to add the last series
+        # Remember to add the last series
         all_list.append(pd.DataFrame(current_list))
 
         # index 0 = 0, index 1 = 1, index 2 = 0, index 3 = 1, index 4 = 0, index 5 = 1, index 6 = 0
         return all_list[0], all_list[1], all_list[2], all_list[3], all_list[4], all_list[5], all_list[6]
 
+    def split_and_window(
+        self, data: np.ndarray, window_length: int, step_size: int, train_frac=0.8, val_frac=0.2
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        n = len(data)
+        train_val_end = int(n * train_frac)
+        train_val_data = data[:train_val_end]
+        test_data = data[train_val_end:]
+
+        val_end = int(train_val_data.shape[0] * val_frac)
+        val_data = train_val_data[:val_end]
+        train_data = train_val_data[val_end:]
+
+        train_windows = self._get_windows(data=train_data, window_length=window_length, step_size=step_size)
+        val_windows = self._get_windows(data=val_data, window_length=window_length, step_size=step_size)
+        test_windows = self._get_windows(data=test_data, window_length=window_length, step_size=step_size)
+        return train_windows, val_windows, test_windows
+
     @staticmethod
-    def get_windows(data: pd.DataFrame, window_length: int, step_size: float) -> np.ndarray:
+    def _get_windows(data: np.ndarray, window_length: int, step_size: float) -> np.ndarray | None:
+        if data.size < window_length:
+            return None
         nrows = ((data.size - window_length) // step_size) + 1
         n = data.strides[0]
         return np.lib.stride_tricks.as_strided(data, shape=(nrows, window_length), strides=(step_size * n, n))

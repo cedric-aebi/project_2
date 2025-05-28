@@ -26,6 +26,7 @@ class ShallowNNModel(AbstractModel):
         input_shape: int,
         dataset: Dataset,
         with_features: bool,
+        val_data: tuple[pd.DataFrame, pd.DataFrame] | None = None,
         centralized=False,
     ) -> None:
         tf.random.set_seed(42)
@@ -42,8 +43,8 @@ class ShallowNNModel(AbstractModel):
             epochs=150 if dataset == Dataset.STRESS else 50,
             batch_size=32 if dataset == Dataset.STRESS else 128,
             verbose=2,
+            fit__validation_data=val_data,
             random_state=42,
-            validation_split=0.0 if centralized else 0.2,
             callbacks=[early_stopping_callback],
         )
         super().__init__(

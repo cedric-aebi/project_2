@@ -53,12 +53,6 @@ class FlowerClient(NumPyClient):
 
         self.model.fit(self.x_train, self.y_train, epochs=self.epochs, batch_size=self.batch_size, verbose=self.verbose)
 
-        # print confusion matrix
-        y_pred = self.model.predict(self.x_train)
-        y_pred = (y_pred > 0.5).astype(int)
-        scores, _ = evaluate(pred=y_pred, y_true=self.y_train)
-        print(scores["confusion_matrix"])
-
         return self.model.get_weights(), len(self.x_train), {}
 
     def evaluate(self, parameters, config):

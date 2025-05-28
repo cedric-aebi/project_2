@@ -34,6 +34,7 @@ def load_data(
     resampling_method: ResamplingMethod | None,
     participant_leave_out: NurseParticipant | None = None,
 ) -> tuple[xgb.DMatrix, xgb.DMatrix, int, int, str | NurseParticipant]:
+    # TODO: rewrite
     base_path = Path(__file__).parent.parent.parent.parent.parent / "datasets" / "nurse" / "paper"
 
     if (participant_leave_out == NurseParticipant.n_DF and which == 10) or (

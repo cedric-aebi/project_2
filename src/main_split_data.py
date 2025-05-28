@@ -6,8 +6,8 @@ import numpy as np
 from enums.Dataset import Dataset
 
 # **************************** CONFIGURATION ****************************
-DATASET = Dataset.NURSE
-WITH_FEATURES = False
+DATASET = Dataset.STRESS
+WITH_FEATURES = True
 # *************************************************************************
 
 PATH_TO_DATASETS = Path(__file__).parent.parent / "datasets"
@@ -67,6 +67,10 @@ if __name__ == "__main__":
             # Rename "Subject" column to "Participant"
             data = data.rename(columns={"Subject": "Participant"})
 
+            # convert float64 to float32
+            for col in data.select_dtypes(include=["float64"]).columns:
+                data[col] = data[col].astype(np.float32)
+
             # Save the dataset
             data.to_pickle(PATH_TO_DATASETS / "stress" / "processed" / "with_features" / "all.pkl")
 
@@ -80,6 +84,10 @@ if __name__ == "__main__":
             data = data.ffill().bfill()
             # drop column "Time(sec)"
             data = data.drop(columns=["Time(sec)"])
+
+            # convert float64 to float32
+            for col in data.select_dtypes(include=["float64"]).columns:
+                data[col] = data[col].astype(np.float32)
 
             # Save the dataset
             data.to_pickle(PATH_TO_DATASETS / "stress" / "processed" / "no_features" / "all.pkl")

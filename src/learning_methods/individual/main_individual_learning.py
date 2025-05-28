@@ -4,8 +4,6 @@ from itertools import product
 from pathlib import Path
 
 import joblib
-import pandas as pd
-from sklearn.model_selection import train_test_split
 
 from enums.Model import Model
 from model.ShallowNNModel import ShallowNNModel
@@ -66,12 +64,10 @@ if __name__ == "__main__":
         for idx, participant in enumerate(utils.get_list_of_participants(dataset=dataset)):
             run_info["participants"].append({"participant": participant})
 
-            df = pd.read_pickle(
-                Path(__file__).parent.parent.parent.parent / "datasets" / "nurse" / "paper" / f"{participant}.pkl"
+            df = utils.load_data(dataset=dataset, with_features=with_features, which=participant)
+            x_train, x_val, x_test, y_train, y_val, y_test = utils.split_data(
+                df=df, with_features=with_features, model=model_enum
             )
-            x = df.drop(columns=["Label", "Participant"])
-            y = df["Label"]
-            x_train, x_test, y_train, y_test = train_test_split(x, y, shuffle=True, random_state=42, stratify=y)
 
             scaler = utils.get_scaler(method=scaling_method)
             resampler = utils.get_resampler(method=resampling_method)
@@ -92,6 +88,7 @@ if __name__ == "__main__":
                         input_shape=x_train.shape[1],
                         dataset=dataset,
                         with_features=with_features,
+                        val_data=(x_val, y_val),
                     )
                 case _:
                     raise Exception(f"Could not initialize model {model_enum.value} for config")
@@ -112,11 +109,11 @@ if __name__ == "__main__":
             # Free up memory and garbage collect
             del (
                 df,
-                x,
-                y,
                 x_train,
+                x_val,
                 x_test,
                 y_train,
+                y_val,
                 y_test,
                 scaler,
                 resampler,

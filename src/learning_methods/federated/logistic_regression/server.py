@@ -1,139 +1,165 @@
 from pathlib import Path
 
+import joblib
 import pandas as pd
-import flwr as fl
-from flwr.common import NDArrays, Scalar
-from flwr.server import ServerConfig
-from imblearn.over_sampling import RandomOverSampler
-from pymongo import MongoClient
-from pymongo.collection import Collection
+from flwr.common import Context, ndarrays_to_parameters, Metrics
+from flwr.server import ServerConfig, ServerAppComponents
+from flwr.server.strategy import FedAvg
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss
-from sklearn.preprocessing import StandardScaler
 
-from enums.Model import Model
-from enums.ResamplingMethod import ResamplingMethod
+from enums.Participant import NurseParticipant
 from enums.ScalingMethod import ScalingMethod
-from learning_methods.federated.logistic_regression import utils
-from service.dataservice.DataService import DataService
+from learning_methods.federated.logistic_regression.task import (
+    create_log_reg_and_instantiate_parameters,
+    get_model_parameters,
+    set_initial_params,
+    set_model_params,
+    evaluate,
+)
 from service.exportservice.ExportService import ExportService
+from utils import utils
 
 
-class Server:
-    def __init__(self, number_of_rounds: int, base_path: Path):
-        self._number_of_rounds = number_of_rounds
-        self._base_path = base_path
-        self._subject_nr = "server"
+def gen_evaluate_fn(
+    x_test: pd.DataFrame,
+    y_test: pd.DataFrame,
+    num_features: int,
+    num_rounds: int,
+    mongo_id: str,
+    run_index: int,
+    penalty: str,
+    export_service: ExportService,
+):
+    """Generate the function for centralized evaluation."""
 
-        dataset_service = DataService()
-        self._export_service = ExportService(database="project_2_windows", collection="federated")
+    model = LogisticRegression(penalty=penalty)
+    set_initial_params(model=model, num_features=num_features)
 
-        self._x_train_all = dataset_service.load_training_features(which="all")
-        self._x_test_all = dataset_service.load_testing_features(which="all")
-        self._y_train_all = dataset_service.load_training_labels(which="all")
-        self._y_test_all = dataset_service.load_testing_labels(which="all")
+    def evaluate_fn(server_round, parameters_ndarrays, config):
+        """Evaluate global model on centralized test set."""
+        set_model_params(model=model, params=parameters_ndarrays)
 
-        self._x_train_all = pd.concat(self._x_train_all).to_numpy()
-        self._y_train_all = pd.concat(self._y_train_all).to_numpy()
+        loss = log_loss(y_test, model.predict_proba(x_test))
+        y_pred = model.predict(x_test)
+        y_pred = (y_pred > 0.5).astype(int)
 
-        self._x_test_all = pd.concat(self._x_test_all).to_numpy()
-        self._y_test_all = pd.concat(self._y_test_all).to_numpy()
-
-        # Replicate best performing pre-processing from centralized run
-        scaler = StandardScaler()
-        self._x_train_all = scaler.fit_transform(X=self._x_train_all)
-        self._x_test_all = scaler.transform(X=self._x_test_all)
-        resampler = RandomOverSampler(random_state=42)
-        self._x_train_all, self._y_train_all = resampler.fit_resample(X=self._x_train_all, y=self._y_train_all)
-
-        self._collection: Collection = MongoClient().project_2_windows.federated
-        params = {"C": 1000, "solver": "liblinear", "penalty": "l1"}
-        self._mongo_dict = {
-            "subject_nr": self._subject_nr,
-            "model": Model.LOGISTIC_REGRESSION,
-            "pre-processing": {
-                "resampling": {"method": ResamplingMethod.OVERSAMPLING},
-                "scaling": {"method": ScalingMethod.STANDARDSCALER},
+        scores_test, cm = evaluate(pred=y_pred, y_true=y_test)
+        scores_test["loss"] = loss
+        scores = {"testing_set": scores_test}
+        export_service.update_run(
+            run_id=mongo_id,
+            set_dict={
+                "$set": {
+                    f"training_runs.{run_index}.clients.server.centralized.round.{str(server_round)}.scores": scores
+                }
             },
-            "params": params,
-            "rounds": [],
-        }
-        self._mongo_id = self._collection.insert_one(self._mongo_dict).inserted_id
-
-        # Define best performing model from centralized run
-        self._model = LogisticRegression(
-            random_state=42,
-            C=params["C"],
-            solver=params["solver"],
-            penalty=params["penalty"],
         )
 
-        # Setting initial parameters, akin to model.compile for keras models
-        utils.set_initial_params(self._model)
+        if server_round == num_rounds:
+            joblib.dump(
+                model,
+                Path(__file__).parent.parent.parent.parent.parent
+                / "results"
+                / "federated"
+                / "models"
+                / f"{mongo_id}_run_index_{run_index}_model.pkl",
+            )
+        return loss, {"centralized_f1": scores_test["f1"]}
 
-    @staticmethod
-    def fit_round(rnd: int) -> dict:
-        """Send round number to client."""
-        return {"rnd": rnd}
+    return evaluate_fn
 
-    def get_eval_fn(self, model: LogisticRegression):
-        """Return an evaluation function for server-side evaluation."""
 
-        # The `evaluate` function will be called after every round
-        def evaluate(
-            server_round: int, parameters: NDArrays, config: dict[str, Scalar]
-        ) -> tuple[float, dict[str, Scalar]] | None:
-            utils.set_model_params(model, parameters)
-            loss = log_loss(self._y_test_all, model.predict_proba(self._x_test_all))
-            print("Evaluate")
-            pred_train = model.predict(self._x_train_all)
-            scores_train, _ = utils.evaluate_prediction(pred=pred_train, y_true=self._y_train_all)
-            pred_test = model.predict(self._x_test_all)
-            scores_test, cm = utils.evaluate_prediction(pred=pred_test, y_true=self._y_test_all)
+def get_evaluate_metrics_aggregation_fn(mongo_id: str, run_index: int, export_service: ExportService):
+    def weighted_average(metrics: list[tuple[int, Metrics]]) -> Metrics:
+        # Multiply f1 of each client by number of examples used
+        server_round = metrics[0][1]["server_round"]
+        f1_scores = [num_examples * m["f1"] for num_examples, m in metrics]
+        examples = [num_examples for num_examples, _ in metrics]
 
-            scores = {"training_set": scores_train, "testing_set": scores_test}
-            self._mongo_dict["rounds"].append(scores)
+        final_score = sum(f1_scores) / sum(examples)
 
-            self._collection.replace_one({"_id": self._mongo_id}, self._mongo_dict)
-
-            # If last round export plots of final model
-            if server_round == self._number_of_rounds:
-                self._export_service.export_confusion_matrix_display(
-                    cm=cm,
-                    labels=["No-Stress", "Stress"],
-                    mongo_id=str(self._mongo_id),
-                    path=self._base_path,
-                    which=self._subject_nr,
-                )
-                self._export_service.export_roc_display(
-                    mongo_id=str(self._mongo_id),
-                    x_test=self._x_test_all,
-                    y_test=self._y_test_all,
-                    path=self._base_path,
-                    model=model,
-                    which=self._subject_nr,
-                )
-
-            return loss, {
-                "accuracy": scores_test["accuracy"],
-                "precision": scores_test["precision"],
-                "recall": scores_test["recall"],
-                "f1": scores_test["f1"],
-            }
-
-        return evaluate
-
-    def start(self) -> None:
-        strategy = fl.server.strategy.FedAvg(
-            min_available_clients=34,
-            min_fit_clients=34,
-            evaluate_fn=self.get_eval_fn(self._model),
-            on_fit_config_fn=self.fit_round,
-            on_evaluate_config_fn=self.fit_round,
-            fraction_evaluate=1,
+        export_service.update_run(
+            run_id=mongo_id,
+            set_dict={
+                "$set": {
+                    f"training_runs.{run_index}.clients.server.distributed.round.{str(server_round)}.scores": final_score
+                }
+            },
         )
-        fl.server.start_server(
-            server_address="0.0.0.0:8080",
-            strategy=strategy,
-            config=ServerConfig(num_rounds=self._number_of_rounds),
+
+        # Aggregate and return custom metric (weighted average)
+        return {"f1": final_score}
+
+    return weighted_average
+
+
+def config_func(rnd: int) -> dict[str, str]:
+    """Return a configuration with global epochs."""
+    config = {
+        "global_round": str(rnd),
+    }
+    return config
+
+
+def get_server_fn(
+    cfg: dict,
+    mongo_id: str,
+    run_index: int,
+    participant_leave_out: NurseParticipant,
+    export_service: ExportService,
+    scaling_method: ScalingMethod | None,
+):
+    def server_fn(context: Context):
+        """Construct components that set the ServerApp behaviour."""
+        params = cfg["params"]
+
+        df = pd.read_pickle(
+            Path(__file__).parent.parent.parent.parent.parent
+            / "datasets"
+            / "nurse"
+            / "paper"
+            / f"{participant_leave_out}.pkl"
         )
+        x = df.drop(columns=["Label", "Participant"])
+        y = df["Label"]
+
+        scaler = utils.get_scaler(method=scaling_method)
+        if scaler is not None:
+            x = scaler.fit_transform(x)
+
+        penalty = params["penalty"]
+        max_iter = params["max_iter"]
+
+        model = create_log_reg_and_instantiate_parameters(penalty=penalty, max_iter=max_iter, num_features=x.shape[1])
+        ndarrays = get_model_parameters(model)
+        global_model_init = ndarrays_to_parameters(ndarrays)
+
+        # Define the strategy
+        strategy = FedAvg(
+            fraction_fit=cfg["fraction_fit"],
+            fraction_evaluate=cfg["fraction_evaluate"],
+            min_available_clients=cfg["min_available_clients"],
+            initial_parameters=global_model_init,
+            on_evaluate_config_fn=config_func,
+            on_fit_config_fn=config_func,
+            evaluate_fn=gen_evaluate_fn(
+                x_test=x,
+                y_test=y,
+                num_features=x.shape[1],
+                num_rounds=cfg["num_server_rounds"],
+                mongo_id=mongo_id,
+                run_index=run_index,
+                export_service=export_service,
+                penalty=penalty,
+            ),
+            evaluate_metrics_aggregation_fn=get_evaluate_metrics_aggregation_fn(
+                mongo_id=mongo_id, run_index=run_index, export_service=export_service
+            ),
+        )
+
+        config = ServerConfig(num_rounds=cfg["num_server_rounds"])
+
+        return ServerAppComponents(strategy=strategy, config=config)
+
+    return server_fn

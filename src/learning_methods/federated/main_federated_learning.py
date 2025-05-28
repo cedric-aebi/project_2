@@ -12,6 +12,8 @@ from learning_methods.federated.xgboost_.server import get_server_fn as get_serv
 from learning_methods.federated.xgboost_.client import get_client_fn as get_client_fn_xgboost
 from learning_methods.federated.shallow_nn.server import get_server_fn as get_server_fn_shallow
 from learning_methods.federated.shallow_nn.client import get_client_fn as get_client_fn_shallow
+from learning_methods.federated.logistic_regression.client import get_client_fn as get_client_fn_logistic
+from learning_methods.federated.logistic_regression.server import get_server_fn as get_server_fn_logistic
 from service.exportservice.ExportService import ExportService
 
 NUM_SUPERNODES = 12
@@ -48,6 +50,16 @@ NN_CONFIG = {
         "dropout": False,
     },
 }
+LG_CONFIG = {
+    "num_server_rounds": NUM_SERVER_ROUNDS,
+    "fraction_fit": 1,
+    "fraction_evaluate": 1,
+    "min_available_clients": NUM_SUPERNODES,
+    "params": {
+        "max_iter": 1,
+        "penalty": "l2",
+    },
+}
 
 if __name__ == "__main__":
     arg_service = ArgumentService(model=True, resampling=True, scaling=True, database=True, features=True, dataset=True)
@@ -70,7 +82,7 @@ if __name__ == "__main__":
             case Model.SHALLOW_NN:
                 config = NN_CONFIG
             case Model.LOGISTIC_REGRESSION:
-                config = XGBOOST_CONFIG
+                config = LG_CONFIG
             case _:
                 raise Exception(f"Could not initialize model {model_enum.value} for config")
 
@@ -150,9 +162,26 @@ if __name__ == "__main__":
                     )
                 case Model.LOGISTIC_REGRESSION:
                     server_app = ServerApp(
-                        server_fn=get_server_fn_xgboost(cfg=config, mongo_id=mongo_id, export_service=export_service)
+                        server_fn=get_server_fn_logistic(
+                            cfg=config,
+                            mongo_id=mongo_id,
+                            run_index=idx,
+                            participant_leave_out=participant_leave_out,
+                            export_service=export_service,
+                            scaling_method=scaling_method,
+                        )
                     )
-                    client_app = ClientApp(client_fn=get_client_fn_xgboost(cfg=config, mongo_id=mongo_id))
+                    client_app = ClientApp(
+                        client_fn=get_client_fn_logistic(
+                            cfg=config,
+                            mongo_id=mongo_id,
+                            run_index=idx,
+                            scaling_method=scaling_method,
+                            resampling_method=resampling_method,
+                            database=database,
+                            participant_leave_out=participant_leave_out,
+                        ),
+                    )
                 case _:
                     raise Exception(f"Could not initialize model {model_enum.value} for config")
 

@@ -8,7 +8,8 @@ from flwr.common import Context, Parameters, Scalar, Metrics
 from flwr.server import ServerConfig, ServerAppComponents
 from flwr.server.strategy import FedXgbBagging
 
-from enums.Participant import NurseParticipant
+from enums.Dataset import Dataset
+from enums.Participant import NurseParticipant, StressParticipant
 from enums.ScalingMethod import ScalingMethod
 from learning_methods.federated.xgboost_.task import transform_dataset_to_dmatrix, evaluate
 from service.exportservice.ExportService import ExportService
@@ -91,9 +92,11 @@ def get_server_fn(
     cfg: dict,
     mongo_id: str,
     run_index: int,
-    participant_leave_out: NurseParticipant,
+    participant_leave_out: NurseParticipant | StressParticipant,
     export_service: ExportService,
     scaling_method: ScalingMethod | None,
+    dataset: Dataset,
+    with_features: bool,
 ):
     def server_fn(context: Context) -> ServerAppComponents:
         num_rounds = cfg["num_server_rounds"]
@@ -101,15 +104,55 @@ def get_server_fn(
         fraction_evaluate = cfg["fraction_evaluate"]
         params = cfg["params"]
 
-        df = pd.read_pickle(
-            Path(__file__).parent.parent.parent.parent.parent
-            / "datasets"
-            / "nurse"
-            / "paper"
-            / f"{participant_leave_out}.pkl"
-        )
-        x = df.drop(columns=["Label", "Participant"])
-        y = df["Label"]
+        # Load data
+        if dataset == Dataset.NURSE:
+            if with_features:
+                df = pd.read_pickle(
+                    Path(__file__).parent.parent.parent.parent.parent
+                    / "datasets"
+                    / "nurse"
+                    / "processed"
+                    / "with_features"
+                    / f"{participant_leave_out}.pkl"
+                )
+                x = df.drop(columns=["Label", "Participant", "Split"])
+                y = df["Label"]
+            else:
+                df = pd.read_pickle(
+                    Path(__file__).parent.parent.parent.parent.parent
+                    / "datasets"
+                    / "nurse"
+                    / "processed"
+                    / "no_features"
+                    / f"{participant_leave_out}.pkl"
+                )
+                x = df.drop(columns=["Label", "Participant"])
+                y = df["Label"]
+        elif dataset == Dataset.STRESS:
+            if with_features:
+                df = pd.read_pickle(
+                    Path(__file__).parent.parent.parent.parent.parent
+                    / "datasets"
+                    / "stress"
+                    / "processed"
+                    / "with_features"
+                    / f"{participant_leave_out}.pkl"
+                )
+                x = df.drop(columns=["Label", "Participant", "Split"])
+                y = df["Label"]
+            else:
+                df = pd.read_pickle(
+                    Path(__file__).parent.parent.parent.parent.parent
+                    / "datasets"
+                    / "stress"
+                    / "processed"
+                    / "no_features"
+                    / f"{participant_leave_out}.pkl"
+                )
+                x = df.drop(columns=["Label", "Participant"])
+                y = df["Label"]
+        else:
+            raise ValueError(f"Dataset {dataset} is not supported.")
 
         scaler = utils.get_scaler(method=scaling_method)
         if scaler is not None:

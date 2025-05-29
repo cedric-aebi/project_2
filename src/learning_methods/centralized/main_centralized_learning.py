@@ -56,18 +56,27 @@ if __name__ == "__main__":
         run_info["_id"] = run_id
 
         # 5. Fit models
-        for idx, participant_leave_out in enumerate(utils.get_list_of_participants(dataset=dataset)):
-            run_info["training_runs"].append({"participant_leave_out": participant_leave_out})
+        for idx, participant_leave_out in enumerate(utils.get_list_of_lave_out_participants(dataset=dataset)):
+            run_info["training_runs"].append({"participant_leave_out": str(participant_leave_out)})
 
             df = utils.load_data(dataset=dataset, which="all", with_features=with_features)
             # shuffle the data
             df = df.sample(frac=1, random_state=42).reset_index(drop=True)
-            train = df[df["Participant"] != participant_leave_out]
-            test = df[df["Participant"] == participant_leave_out]
+
+            # Convert "Participant" column to string if it is not already
+            df["Participant"] = df["Participant"].astype(str)
+
+            train = df[df["Participant"] != str(participant_leave_out)]
+            test = df[df["Participant"] == str(participant_leave_out)]
             x_train = train.drop(columns=["Participant", "Label"])
             y_train = train["Label"]
             x_test = test.drop(columns=["Participant", "Label"])
             y_test = test["Label"]
+
+            if with_features:
+                # If features are used, we need to drop the "Split" column
+                x_train = x_train.drop(columns=["Split"])
+                x_test = x_test.drop(columns=["Split"])
 
             # 1. Initialize model, scaler and resampler
             scaler = utils.get_scaler(method=scaling_method)

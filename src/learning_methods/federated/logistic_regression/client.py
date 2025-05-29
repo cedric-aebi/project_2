@@ -6,15 +6,17 @@ from flwr.common import Context
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss
 
-from enums.Participant import NurseParticipant
+from enums.Dataset import Dataset
+from enums.Participant import NurseParticipant, StressParticipant
 from enums.ResamplingMethod import ResamplingMethod
 from enums.ScalingMethod import ScalingMethod
 from learning_methods.federated.logistic_regression.task import (
     create_log_reg_and_instantiate_parameters,
     set_model_params,
     get_model_parameters,
-    load_data,
+    load_data_nurse,
     evaluate,
+    load_data_stress,
 )
 from service.exportservice.ExportService import ExportService
 
@@ -78,19 +80,31 @@ def get_client_fn(
     scaling_method: ScalingMethod | None,
     resampling_method: ResamplingMethod | None,
     database: str,
-    participant_leave_out: NurseParticipant,
+    participant_leave_out: NurseParticipant | StressParticipant,
+    dataset: Dataset,
+    with_features: bool,
 ) -> Callable:
     def client_fn(context: Context):
         """Construct a Client that will be run in a ClientApp."""
 
         # Read the node_config to fetch data partition associated to this node
         partition_id = context.node_config["partition-id"]
-        x_train, x_test, y_train, y_test, participant = load_data(
-            which=partition_id,
-            scaling_method=scaling_method,
-            resampling_method=resampling_method,
-            participant_leave_out=participant_leave_out,
-        )
+        if dataset == Dataset.NURSE:
+            x_train, x_test, y_train, y_test, participant = load_data_nurse(
+                which=partition_id,
+                scaling_method=scaling_method,
+                resampling_method=resampling_method,
+                participant_leave_out=participant_leave_out,
+                with_features=with_features,
+            )
+        else:
+            x_train, x_test, y_train, y_test, participant = load_data_stress(
+                which=partition_id,
+                scaling_method=scaling_method,
+                resampling_method=resampling_method,
+                participant_leave_out=participant_leave_out,
+                with_features=with_features,
+            )
 
         # Read run_config to fetch hyperparameters relevant to this run
         params = cfg["params"]

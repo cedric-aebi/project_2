@@ -8,7 +8,8 @@ from flwr.server.strategy import FedAvg
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss
 
-from enums.Participant import NurseParticipant
+from enums.Dataset import Dataset
+from enums.Participant import NurseParticipant, StressParticipant
 from enums.ScalingMethod import ScalingMethod
 from learning_methods.federated.logistic_regression.task import (
     create_log_reg_and_instantiate_parameters,
@@ -106,23 +107,65 @@ def get_server_fn(
     cfg: dict,
     mongo_id: str,
     run_index: int,
-    participant_leave_out: NurseParticipant,
+    participant_leave_out: NurseParticipant | StressParticipant,
     export_service: ExportService,
     scaling_method: ScalingMethod | None,
+    dataset: Dataset,
+    with_features: bool,
 ):
     def server_fn(context: Context):
         """Construct components that set the ServerApp behaviour."""
         params = cfg["params"]
 
-        df = pd.read_pickle(
-            Path(__file__).parent.parent.parent.parent.parent
-            / "datasets"
-            / "nurse"
-            / "paper"
-            / f"{participant_leave_out}.pkl"
-        )
-        x = df.drop(columns=["Label", "Participant"])
-        y = df["Label"]
+        # Load data
+        if dataset == Dataset.NURSE:
+            if with_features:
+                df = pd.read_pickle(
+                    Path(__file__).parent.parent.parent.parent.parent
+                    / "datasets"
+                    / "nurse"
+                    / "processed"
+                    / "with_features"
+                    / f"{participant_leave_out}.pkl"
+                )
+                x = df.drop(columns=["Label", "Participant", "Split"])
+                y = df["Label"]
+            else:
+                df = pd.read_pickle(
+                    Path(__file__).parent.parent.parent.parent.parent
+                    / "datasets"
+                    / "nurse"
+                    / "processed"
+                    / "no_features"
+                    / f"{participant_leave_out}.pkl"
+                )
+                x = df.drop(columns=["Label", "Participant"])
+                y = df["Label"]
+        elif dataset == Dataset.STRESS:
+            if with_features:
+                df = pd.read_pickle(
+                    Path(__file__).parent.parent.parent.parent.parent
+                    / "datasets"
+                    / "stress"
+                    / "processed"
+                    / "with_features"
+                    / f"{participant_leave_out}.pkl"
+                )
+                x = df.drop(columns=["Label", "Participant", "Split"])
+                y = df["Label"]
+            else:
+                df = pd.read_pickle(
+                    Path(__file__).parent.parent.parent.parent.parent
+                    / "datasets"
+                    / "stress"
+                    / "processed"
+                    / "no_features"
+                    / f"{participant_leave_out}.pkl"
+                )
+                x = df.drop(columns=["Label", "Participant"])
+                y = df["Label"]
+        else:
+            raise ValueError(f"Dataset {dataset} is not supported.")
 
         scaler = utils.get_scaler(method=scaling_method)
         if scaler is not None:

@@ -3,10 +3,11 @@ from flwr.client import Client
 from flwr.common import FitIns, FitRes, Status, Code, Parameters, EvaluateIns, EvaluateRes, Context
 from sklearn.metrics import f1_score
 
-from enums.Participant import NurseParticipant
+from enums.Dataset import Dataset
+from enums.Participant import NurseParticipant, StressParticipant
 from enums.ResamplingMethod import ResamplingMethod
 from enums.ScalingMethod import ScalingMethod
-from learning_methods.federated.xgboost_.task import load_data, evaluate
+from learning_methods.federated.xgboost_.task import evaluate, load_data_nurse, load_data_stress
 from service.exportservice.ExportService import ExportService
 
 
@@ -132,17 +133,29 @@ def get_client_fn(
     scaling_method: ScalingMethod | None,
     resampling_method: ResamplingMethod | None,
     database: str,
-    participant_leave_out: NurseParticipant,
+    participant_leave_out: NurseParticipant | StressParticipant,
+    dataset: Dataset,
+    with_features: bool,
 ):
     def client_fn(context: Context):
         # Load model and data
         partition_id = context.node_config["partition-id"]
-        train_dmatrix, valid_dmatrix, num_train, num_val, participant = load_data(
-            which=partition_id,
-            scaling_method=scaling_method,
-            resampling_method=resampling_method,
-            participant_leave_out=participant_leave_out,
-        )
+        if dataset == Dataset.NURSE:
+            train_dmatrix, valid_dmatrix, num_train, num_val, participant = load_data_nurse(
+                which=partition_id,
+                scaling_method=scaling_method,
+                resampling_method=resampling_method,
+                participant_leave_out=participant_leave_out,
+                with_features=with_features,
+            )
+        else:
+            train_dmatrix, valid_dmatrix, num_train, num_val, participant = load_data_stress(
+                which=partition_id,
+                scaling_method=scaling_method,
+                resampling_method=resampling_method,
+                participant_leave_out=participant_leave_out,
+                with_features=with_features,
+            )
 
         num_local_round = cfg["local_epochs"]
 

@@ -62,7 +62,7 @@ def load_data(dataset: Dataset, with_features: bool, which: str | NurseParticipa
 
 
 def split_data(
-    df: pd.DataFrame, model: Model, with_features: bool
+    df: pd.DataFrame, model: Model | None, with_features: bool
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     if with_features:
         if model == Model.SHALLOW_NN:
@@ -102,7 +102,12 @@ def split_data(
 
         if model == Model.SHALLOW_NN:
             x_train, x_val, y_train, y_val = train_test_split(
-                x_train_val, y_train_val, shuffle=True, random_state=42, stratify=y_train_val, test_size=0.2
+                x_train_val,
+                y_train_val,
+                shuffle=True,
+                random_state=42,
+                stratify=y_train_val,
+                test_size=0.2,
             )
         else:
             x_train, y_train = x_train_val, y_train_val
@@ -116,6 +121,25 @@ def get_list_of_participants(dataset: Dataset) -> list[str] | list[int]:
         participants = [str(e.value) for e in NurseParticipant]
     elif dataset == Dataset.STRESS:
         participants = [e.value for e in StressParticipant]
+    else:
+        raise ValueError(f"Dataset {dataset} not recognized")
+
+    return participants
+
+
+def get_list_of_lave_out_participants(dataset: Dataset) -> list[NurseParticipant] | list[StressParticipant]:
+    if dataset == Dataset.NURSE:
+        participants = [
+            NurseParticipant.n_F5,
+            NurseParticipant.n_E4,
+            NurseParticipant.n_DF,
+        ]
+    elif dataset == Dataset.STRESS:
+        participants = [
+            StressParticipant.s_33,
+            StressParticipant.s_34,
+            StressParticipant.s_35,
+        ]
     else:
         raise ValueError(f"Dataset {dataset} not recognized")
 

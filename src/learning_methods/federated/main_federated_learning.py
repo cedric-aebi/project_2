@@ -6,7 +6,6 @@ from flwr.server import ServerApp
 from flwr.simulation import run_simulation
 
 from enums.Model import Model
-from enums.Participant import NurseParticipant
 from service.argumentservice.ArgumentService import ArgumentService
 from learning_methods.federated.xgboost_.server import get_server_fn as get_server_fn_xgboost
 from learning_methods.federated.xgboost_.client import get_client_fn as get_client_fn_xgboost
@@ -15,8 +14,9 @@ from learning_methods.federated.shallow_nn.client import get_client_fn as get_cl
 from learning_methods.federated.logistic_regression.client import get_client_fn as get_client_fn_logistic
 from learning_methods.federated.logistic_regression.server import get_server_fn as get_server_fn_logistic
 from service.exportservice.ExportService import ExportService
+from utils import utils
 
-NUM_SUPERNODES = 12
+NUM_SUPERNODES = 12  # Or 32
 NUM_SERVER_ROUNDS = 100
 XGBOOST_CONFIG = {
     "num_server_rounds": NUM_SERVER_ROUNDS,
@@ -107,9 +107,7 @@ if __name__ == "__main__":
 
         print(f"Executing run with configuration: {run_info} on database {database}")
 
-        for idx, participant_leave_out in enumerate(
-            [NurseParticipant.n_F5, NurseParticipant.n_E4, NurseParticipant.n_DF]
-        ):
+        for idx, participant_leave_out in enumerate(utils.get_list_of_lave_out_participants(dataset=dataset)):
             export_service.update_run(
                 run_id=run_id,
                 set_dict={"$set": {f"training_runs.{idx}.participant_leave_out": str(participant_leave_out)}},
@@ -125,6 +123,8 @@ if __name__ == "__main__":
                             participant_leave_out=participant_leave_out,
                             export_service=export_service,
                             scaling_method=scaling_method,
+                            dataset=dataset,
+                            with_features=with_features,
                         )
                     )
                     client_app = ClientApp(
@@ -136,6 +136,8 @@ if __name__ == "__main__":
                             resampling_method=resampling_method,
                             database=database,
                             participant_leave_out=participant_leave_out,
+                            dataset=dataset,
+                            with_features=with_features,
                         )
                     )
                 case Model.SHALLOW_NN:
@@ -147,6 +149,8 @@ if __name__ == "__main__":
                             participant_leave_out=participant_leave_out,
                             export_service=export_service,
                             scaling_method=scaling_method,
+                            dataset=dataset,
+                            with_features=with_features,
                         )
                     )
                     client_app = ClientApp(
@@ -158,6 +162,8 @@ if __name__ == "__main__":
                             resampling_method=resampling_method,
                             database=database,
                             participant_leave_out=participant_leave_out,
+                            dataset=dataset,
+                            with_features=with_features,
                         )
                     )
                 case Model.LOGISTIC_REGRESSION:
@@ -169,6 +175,8 @@ if __name__ == "__main__":
                             participant_leave_out=participant_leave_out,
                             export_service=export_service,
                             scaling_method=scaling_method,
+                            dataset=dataset,
+                            with_features=with_features,
                         )
                     )
                     client_app = ClientApp(
@@ -180,6 +188,8 @@ if __name__ == "__main__":
                             resampling_method=resampling_method,
                             database=database,
                             participant_leave_out=participant_leave_out,
+                            dataset=dataset,
+                            with_features=with_features,
                         ),
                     )
                 case _:

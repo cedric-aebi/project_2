@@ -34,16 +34,15 @@ class FeatureService:
         return all_list[0], all_list[1], all_list[2], all_list[3], all_list[4], all_list[5], all_list[6]
 
     def split_and_window(
-        self, data: np.ndarray, window_length: int, step_size: int, train_frac=0.8, val_frac=0.2
+        self, data: np.ndarray, window_length: int, step_size: int
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         n = len(data)
-        train_val_end = int(n * train_frac)
-        train_val_data = data[:train_val_end]
-        test_data = data[train_val_end:]
+        train_end = int(n * 0.6)  # 60% train
+        val_end = int(n * 0.8)  # 20% validation
 
-        val_end = int(train_val_data.shape[0] * val_frac)
-        val_data = train_val_data[:val_end]
-        train_data = train_val_data[val_end:]
+        train_data = data[:train_end]
+        val_data = data[train_end:val_end]
+        test_data = data[val_end:]
 
         train_windows = self._get_windows(data=train_data, window_length=window_length, step_size=step_size)
         val_windows = self._get_windows(data=val_data, window_length=window_length, step_size=step_size)

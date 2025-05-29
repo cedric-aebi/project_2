@@ -6,8 +6,8 @@ import numpy as np
 from enums.Dataset import Dataset
 
 # **************************** CONFIGURATION ****************************
-DATASET = Dataset.STRESS
-WITH_FEATURES = True
+DATASET = Dataset.NURSE
+WITH_FEATURES = False
 # *************************************************************************
 
 PATH_TO_DATASETS = Path(__file__).parent.parent / "datasets"
@@ -36,12 +36,20 @@ if __name__ == "__main__":
                 )
         else:
             data = pd.read_csv(PATH_TO_DATASETS / "nurse" / "raw" / "nurse_no_features.csv", engine="pyarrow")
+            data = data[data["EDA"] != 0]
+
+            # Ensure the datetime column is in datetime format
+            data["datetime"] = pd.to_datetime(data["datetime"])
+
+            # Get time of day and date of year as separate features. time of day in hours
+            data["time_of_day"] = data["datetime"].dt.hour + data["datetime"].dt.minute / 60
+            data["date_of_year"] = data["datetime"].dt.dayofyear
+            data = data.drop(columns=["datetime"])
+
             # Remove ids "CE" and "EG" due to lack of data
             data = data[~data["id"].isin(["CE", "EG"])]
             # Binary classification
             data.loc[data["label"] == 2, "label"] = 1
-            # drop column datetime
-            data = data.drop(columns=["datetime"])
             # rename id column to Participant
             data = data.rename(columns={"id": "Participant"})
             # rename label column to Label

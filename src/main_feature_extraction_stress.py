@@ -8,7 +8,7 @@ import pywt
 from service.featureservice.FeatureService import FeatureService
 
 DATASETS_PATH = Path(__file__).parent.parent / "datasets" / "stress" / "raw"
-WINDOW_LENGTH = 60
+WINDOW_LENGTH = 30
 STEP_SIZE = 1
 
 if __name__ == "__main__":

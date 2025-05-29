@@ -66,12 +66,3 @@ class AbstractModel(ABC):
     @abstractmethod
     def get_fitted_model(self) -> Pipeline:
         pass
-
-    def _get_number_of_jobs(self):
-        if self._dataset == Dataset.STRESS:
-            return 16
-        else:
-            if self._with_features:
-                return 12
-            else:
-                return 16

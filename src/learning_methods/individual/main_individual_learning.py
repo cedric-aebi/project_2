@@ -82,10 +82,10 @@ if __name__ == "__main__":
                         scaler=scaler, resampler=resampler, dataset=dataset, with_features=with_features
                     )
                 case Model.SHALLOW_NN:
+                    # Scale validation data by hand
                     if scaler is not None:
-                        x_train = scaler.fit_transform(x_train)
-                        x_val = scaler.transform(x_val) if x_val is not None else None
-                        x_test = scaler.transform(x_test)
+                        _ = scaler.fit_transform(x_train)
+                        x_val = scaler.transform(x_val)
                     model = ShallowNNModel(
                         scaler=scaler,
                         resampler=resampler,

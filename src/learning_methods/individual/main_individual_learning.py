@@ -6,6 +6,8 @@ from pathlib import Path
 import joblib
 
 from enums.Model import Model
+from enums.ResamplingMethod import ResamplingMethod
+from enums.ScalingMethod import ScalingMethod
 from model.ShallowNNModel import ShallowNNModel
 from model.LogisticRegressionModel import LogisticRegressionModel
 from model.XGBoostModel import XGBoostModel
@@ -32,10 +34,23 @@ if __name__ == "__main__":
 
     export_service = ExportService(database=database, collection="individual")
 
+    # Find the specific methods you want
+    oversampling_method = next((m for m in resampling_methods if m and m == ResamplingMethod.OVERSAMPLING), None)
+    standardscaling_method = next((m for m in scaling_methods if m and m == ScalingMethod.STANDARDSCALER), None)
+    none_resampling = None
+    none_scaling = None
+
+    combinations = []
+
+    for model_enum, with_features, tiny in product(models, features_list, tiny_param):
+        # Both None
+        combinations.append((model_enum, None, None, with_features, tiny))
+        # Both oversampling and standardscaling
+        if oversampling_method and standardscaling_method:
+            combinations.append((model_enum, oversampling_method, standardscaling_method, with_features, tiny))
+
     # Execute machine learning pipeline for each configured model
-    for model_enum, resampling_method, scaling_method, with_features, tiny in product(
-        models, resampling_methods, scaling_methods, features_list, tiny_param
-    ):
+    for model_enum, resampling_method, scaling_method, with_features, tiny in combinations:
         # 2. Create run configuration with the given parameters
         run_info = {
             "model": model_enum.value,

@@ -28,7 +28,7 @@ def load_data_nurse(
         )
     else:
         base_path = (
-            Path(__file__).parent.parent.parent.parent.parent / "datasets" / "nurse" / "processed" / "without_features"
+            Path(__file__).parent.parent.parent.parent.parent / "datasets" / "nurse" / "processed" / "no_features"
         )
 
     if (participant_leave_out == NurseParticipant.n_DF and which == 10) or (
@@ -116,7 +116,7 @@ def load_data_stress(
         )
     else:
         base_path = (
-            Path(__file__).parent.parent.parent.parent.parent / "datasets" / "stress" / "processed" / "without_features"
+            Path(__file__).parent.parent.parent.parent.parent / "datasets" / "stress" / "processed" / "no_features"
         )
 
     if (participant_leave_out == StressParticipant.s_35 and which == 30) or (

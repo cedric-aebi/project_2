@@ -85,7 +85,7 @@ def load_data_nurse(
         )
     else:
         base_path = (
-            Path(__file__).parent.parent.parent.parent.parent / "datasets" / "nurse" / "processed" / "without_features"
+            Path(__file__).parent.parent.parent.parent.parent / "datasets" / "nurse" / "processed" / "no_features"
         )
 
     if (participant_leave_out == NurseParticipant.n_DF and which == 10) or (
@@ -165,7 +165,7 @@ def load_data_stress(
         )
     else:
         base_path = (
-            Path(__file__).parent.parent.parent.parent.parent / "datasets" / "stress" / "processed" / "without_features"
+            Path(__file__).parent.parent.parent.parent.parent / "datasets" / "stress" / "processed" / "no_features"
         )
 
     if (participant_leave_out == StressParticipant.s_35 and which == 30) or (
@@ -289,7 +289,7 @@ def load_data_stress(
     if resampler is not None:
         x_train, y_train = resampler.fit_resample(x_train, y_train)
 
-    return x_train.to_numpy(), x_test.to_numpy(), y_train.to_numpy(), y_test.to_numpy(), participant
+    return x_train, x_test, y_train, y_test, participant
 
 
 def evaluate(pred: pd.DataFrame | np.ndarray, y_true: pd.DataFrame) -> tuple[dict, pd.DataFrame]:

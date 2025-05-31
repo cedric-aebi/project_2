@@ -40,6 +40,7 @@ class ShallowNNModel(AbstractModel):
             model__dropout=None,
             model__batch_normalization=False,
             model__regularization=False,
+            model__learning_rate=0.0001 if with_features else 0.001,
             epochs=150 if dataset == Dataset.STRESS else 50,
             batch_size=32 if dataset == Dataset.STRESS else 128,
             verbose=2,
@@ -67,6 +68,7 @@ class ShallowNNModel(AbstractModel):
         dropout: float | None,
         batch_normalization: bool,
         regularization: bool,
+        learning_rate: float,
     ) -> keras.Sequential:
         # Define the model
         model = keras.Sequential()
@@ -102,7 +104,7 @@ class ShallowNNModel(AbstractModel):
         # Output layer with 1 neuron, sigmoid activation for binary classification
         model.add(keras.layers.Dense(1, activation="sigmoid"))
 
-        optimizer = keras.optimizers.Adam(learning_rate=0.001)
+        optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
 
         model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=["accuracy"])
 

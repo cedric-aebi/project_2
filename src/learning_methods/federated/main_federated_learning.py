@@ -75,7 +75,7 @@ if __name__ == "__main__":
     export_service = ExportService(database=database, collection="federated")
 
     # Find the specific methods you want
-    oversampling_method = next((m for m in resampling_methods if m and m == ResamplingMethod.OVERSAMPLING), None)
+    oversampling_method = next((m for m in resampling_methods if m and m == ResamplingMethod.UNDERSAMPLING), None)
     standardscaling_method = next((m for m in scaling_methods if m and m == ScalingMethod.STANDARDSCALER), None)
     none_resampling = None
     none_scaling = None

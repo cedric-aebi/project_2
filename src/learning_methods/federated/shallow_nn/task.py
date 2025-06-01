@@ -149,7 +149,7 @@ def load_data_nurse(
     if resampler is not None:
         x_train, y_train = resampler.fit_resample(x_train, y_train)
 
-    return x_train.to_numpy(), x_test.to_numpy(), y_train.to_numpy(), y_test.to_numpy(), participant
+    return x_train, x_test, y_train, y_test, participant
 
 
 def load_data_stress(

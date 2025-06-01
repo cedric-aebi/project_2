@@ -44,7 +44,7 @@ NN_CONFIG = {
     "min_available_clients": NUM_SUPERNODES,
     "params": {
         "batch_size": 128,
-        "learning_rate": 0.001,  # lr 0.01 without windows, 0.001 with windows
+        "learning_rate": 0.01,  # lr 0.01 without windows, 0.001 with windows
         "verbose": False,
         "optimizer": "sgd",
         "regularization": False,

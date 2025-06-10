@@ -1,6 +1,7 @@
 from service.argumentservice.ArgumentService import ArgumentService
 from service.exportservice.ExportService import ExportService
 
+# After the experiments this script can average the scores for each document inside MongoDB
 if __name__ == "__main__":
     arg_service = ArgumentService(database=True, collection=True)
     database = arg_service.get_database()

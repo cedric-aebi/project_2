@@ -88,6 +88,7 @@ def load_data_nurse(
             Path(__file__).parent.parent.parent.parent.parent / "datasets" / "nurse" / "processed" / "no_features"
         )
 
+    # Adjust the participant number based on the leave-out participant
     if (participant_leave_out == NurseParticipant.n_DF and which == 10) or (
         participant_leave_out == NurseParticipant.n_E4 and which == 11
     ):
@@ -168,6 +169,7 @@ def load_data_stress(
             Path(__file__).parent.parent.parent.parent.parent / "datasets" / "stress" / "processed" / "no_features"
         )
 
+    # Adjust the participant number based on the leave-out participant
     if (participant_leave_out == StressParticipant.s_35 and which == 30) or (
         participant_leave_out == StressParticipant.s_34 and which == 31
     ):

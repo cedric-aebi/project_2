@@ -34,24 +34,11 @@ if __name__ == "__main__":
 
     export_service = ExportService(database=database, collection="individual")
 
-    # Find the specific methods you want
-    oversampling_method = next((m for m in resampling_methods if m and m == ResamplingMethod.UNDERSAMPLING), None)
-    standardscaling_method = next((m for m in scaling_methods if m and m == ScalingMethod.STANDARDSCALER), None)
-    none_resampling = None
-    none_scaling = None
-
-    combinations = []
-
-    for model_enum, with_features, tiny in product(models, features_list, tiny_param):
-        # Both None
-        combinations.append((model_enum, None, None, with_features, tiny))
-        # Both oversampling and standardscaling
-        if oversampling_method and standardscaling_method:
-            combinations.append((model_enum, oversampling_method, standardscaling_method, with_features, tiny))
-
     # Execute machine learning pipeline for each configured model
-    for model_enum, resampling_method, scaling_method, with_features, tiny in combinations:
-        # 2. Create run configuration with the given parameters
+    for model_enum, resampling_method, scaling_method, with_features, tiny in product(
+        models, resampling_methods, scaling_methods, features_list, tiny_param
+    ):
+        # 1. Create run configuration with the given parameters
         run_info = {
             "model": model_enum.value,
             "pre-processing": {
@@ -63,7 +50,7 @@ if __name__ == "__main__":
             "tiny": tiny,
         }
 
-        # 3. Create a has over the run_info dict and the current database and check if run already exists
+        # 2. Create a has over the run_info dict and the current database and check if run already exists
         run_id = export_service.generate_unique_id([database, json.dumps(run_info)])
 
         if export_service.run_exists(run_id):
@@ -72,10 +59,10 @@ if __name__ == "__main__":
 
         print(f"Executing run with configuration: {run_info} on database {database}")
 
-        # 4. Set run id and fit the model on the centralized dataset
+        # 3. Set run id and fit the model on the centralized dataset
         run_info["_id"] = run_id
 
-        # 5. Fit models
+        # 4. Fit models for each participant in the dataset
         for idx, participant in enumerate(utils.get_list_of_participants(dataset=dataset)):
             run_info["participants"].append({"participant": participant})
 

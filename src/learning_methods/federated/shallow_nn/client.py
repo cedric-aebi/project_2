@@ -124,6 +124,9 @@ def get_client_fn(
             )
 
         # Read run_config to fetch hyperparameters relevant to this run
+
+        # NOTE: batch_normalization, regularization and dropout are not used in the model, but are included
+        # for consistency with the original code
         params = cfg["params"]
         epochs = cfg["local_epochs"]
         regularization = params["regularization"]

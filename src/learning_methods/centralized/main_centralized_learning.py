@@ -30,21 +30,12 @@ if __name__ == "__main__":
 
     export_service = ExportService(database=database, collection="centralized")
 
-    # Find the specific methods you want
-    oversampling_method = next((m for m in resampling_methods if m and m == ResamplingMethod.UNDERSAMPLING), None)
-    standardscaling_method = next((m for m in scaling_methods if m and m == ScalingMethod.STANDARDSCALER), None)
-
-    combinations = []
-
-    for model_enum, with_features in product(models, features_list):
-        # Both None
-        combinations.append((model_enum, None, None, with_features))
-        # Both oversampling and standardscaling
-        if oversampling_method and standardscaling_method:
-            combinations.append((model_enum, oversampling_method, standardscaling_method, with_features))
-
-    # Execute machine learning pipeline for each configured model
-    for model_enum, resampling_method, scaling_method, with_features in combinations:
+    # Execute machine learning pipeline for each combination of parameters
+    # This is an exhaustive search over all combinations of models, resampling methods, scaling methods, and features
+    # and takes a long time to run, so be careful with the number of combinations
+    for model_enum, resampling_method, scaling_method, with_features in product(
+        models, resampling_methods, scaling_methods, features_list
+    ):
         # 1. Create run configuration with the given parameters
         run_info = {
             "model": model_enum.value,
@@ -56,7 +47,7 @@ if __name__ == "__main__":
             "training_runs": [],
         }
 
-        # 3. Create a has over the run_info dict and the current database and check if run already exists
+        # 2. Create a hash over the run_info dict and the current database and check if run already exists
         run_id = export_service.generate_unique_id([database, json.dumps(run_info)])
 
         if export_service.run_exists(run_id):
@@ -65,10 +56,10 @@ if __name__ == "__main__":
 
         print(f"Executing run with configuration: {run_info} on database {database}")
 
-        # 4. Set run id and fit the model on the centralized dataset
+        # 3. Set run id and fit the model on the centralized dataset
         run_info["_id"] = run_id
 
-        # 5. Fit models
+        # 4. Fit models with a leave-one-subject-out (LOSO) strategy
         for idx, participant_leave_out in enumerate(utils.get_list_of_lave_out_participants(dataset=dataset)):
             run_info["training_runs"].append({"participant_leave_out": str(participant_leave_out)})
 
@@ -91,7 +82,7 @@ if __name__ == "__main__":
                 x_train = x_train.drop(columns=["Split"])
                 x_test = x_test.drop(columns=["Split"])
 
-            # 1. Initialize model, scaler and resampler
+            # Initialize model, scaler and resampler
             scaler = utils.get_scaler(method=scaling_method)
             resampler = utils.get_resampler(method=resampling_method)
 
@@ -117,7 +108,7 @@ if __name__ == "__main__":
                     raise Exception(f"Could not initialize model {model_enum.value} for config")
             model.fit(x_train=x_train, y_train=y_train, run_info=run_info)
 
-            # 5. Get training and testing results on centralized dataset
+            # Get training and testing results on centralized dataset
             pred_train = model.predict(x=x_train)
             scores_train, _ = model.evaluate(pred=pred_train, y_true=y_train)
             pred_test = model.predict(x=x_test)
@@ -125,7 +116,7 @@ if __name__ == "__main__":
             scores = {"training_set": scores_train, "testing_set": scores_test}
             run_info["training_runs"][idx]["scores"] = scores
 
-            # 7. Export run configuration and results to mongodb
+            # Export run configuration and results to mongodb
             if not os.path.exists(EXPORT_PATH):
                 os.makedirs(EXPORT_PATH)
             joblib.dump(model, EXPORT_PATH / f"{run_id}.joblib", compress=3)

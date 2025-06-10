@@ -57,6 +57,7 @@ def gen_evaluate_fn(
             },
         )
 
+        # Save model after the last round
         if server_round == num_rounds:
             joblib.dump(
                 model,

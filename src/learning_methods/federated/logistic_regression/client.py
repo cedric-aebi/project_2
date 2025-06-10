@@ -85,8 +85,6 @@ def get_client_fn(
     with_features: bool,
 ) -> Callable:
     def client_fn(context: Context):
-        """Construct a Client that will be run in a ClientApp."""
-
         # Read the node_config to fetch data partition associated to this node
         partition_id = context.node_config["partition-id"]
         if dataset == Dataset.NURSE:

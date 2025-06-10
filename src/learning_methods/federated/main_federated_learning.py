@@ -18,6 +18,8 @@ from learning_methods.federated.logistic_regression.server import get_server_fn 
 from service.exportservice.ExportService import ExportService
 from utils import utils
 
+# Configuration for the federated learning simulation
+# 12 clients for nurse dataset, 32 clients for stress dataset
 NUM_SUPERNODES = 32  # 12 or 32
 NUM_SERVER_ROUNDS = 100
 XGBOOST_CONFIG = {
@@ -74,23 +76,12 @@ if __name__ == "__main__":
 
     export_service = ExportService(database=database, collection="federated")
 
-    # Find the specific methods you want
-    oversampling_method = next((m for m in resampling_methods if m and m == ResamplingMethod.UNDERSAMPLING), None)
-    standardscaling_method = next((m for m in scaling_methods if m and m == ScalingMethod.STANDARDSCALER), None)
-    none_resampling = None
-    none_scaling = None
-
-    combinations = []
-
-    for model_enum, with_features in product(models, features_list):
-        # Both None
-        combinations.append((model_enum, None, None, with_features))
-        # Both oversampling and standardscaling
-        if oversampling_method and standardscaling_method:
-            combinations.append((model_enum, oversampling_method, standardscaling_method, with_features))
-
-    # Execute a machine learning pipeline for each configured model
-    for model_enum, resampling_method, scaling_method, with_features in combinations:
+    # Execute machine learning pipeline for each combination of parameters
+    # This is an exhaustive search over all combinations of models, resampling methods, scaling methods, and features
+    # and takes a long time to run, so be careful with the number of combinations
+    for model_enum, resampling_method, scaling_method, with_features in product(
+        models, resampling_methods, scaling_methods, features_list
+    ):
         match model_enum:
             case Model.XGBOOST:
                 config = XGBOOST_CONFIG
@@ -116,12 +107,16 @@ if __name__ == "__main__":
         run_info["_id"] = run_id
         mongo_id = export_service.export_run_to_mongodb(run_info=run_info)
 
+        # Check if the run has a "finished" flag set to true in the database, which means the run is completed and
+        # should not be executed again
         if export_service.run_is_finished(run_id):
             print(f"Run with id: {run_id} on database {database} already exists")
             continue
 
         print(f"Executing run with configuration: {run_info} on database {database}")
 
+        # Run the federated learning simulation for each participant leave-out, if the leave-out is list is
+        # updated, the loading_data functions need to be updated as well
         for idx, participant_leave_out in enumerate(utils.get_list_of_lave_out_participants(dataset=dataset)):
             export_service.update_run(
                 run_id=run_id,

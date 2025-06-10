@@ -64,11 +64,13 @@ class ExportService:
             case "centralized":
                 for document in documents:
                     accs, precs, recs, f1s = [], [], [], []
-                    for subject in document["individual_scoring"]:
-                        accs.append(subject["testing_set"]["accuracy"])
-                        precs.append(subject["testing_set"]["precision"])
-                        recs.append(subject["testing_set"]["recall"])
-                        f1s.append(subject["testing_set"]["f1"])
+                    training_runs = document["training_runs"]
+
+                    for run in training_runs:
+                        accs.append(run["scores"]["testing_set"]["accuracy"])
+                        precs.append(run["scores"]["testing_set"]["precision"])
+                        recs.append(run["scores"]["testing_set"]["recall"])
+                        f1s.append(run["scores"]["testing_set"]["f1"])
 
                     document["average_scoring"] = {
                         "mean_accuracy": statistics.fmean(accs),

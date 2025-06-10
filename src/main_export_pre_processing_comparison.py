@@ -3,6 +3,7 @@ from pathlib import Path
 from service.argumentservice.ArgumentService import ArgumentService
 from service.exportservice.ExportService import ExportService
 
+# Exports a csv with the pre-processing comparison results
 if __name__ == "__main__":
     arg_service = ArgumentService(database=True)
     database = arg_service.get_database()

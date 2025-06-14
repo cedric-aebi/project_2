@@ -1,6 +1,7 @@
 import hashlib
 import pickle
 import statistics
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,7 @@ import pandas as pd
 from pymongo import MongoClient
 from pymongo.collection import Collection
 
+from enums.Dataset import Dataset
 from enums.Model import Model
 from service.visualizationservice.VisualizationService import VisualizationService
 
@@ -130,34 +132,54 @@ class ExportService:
                     }
                     self.__collection.update_one({"_id": document["_id"]}, {"$set": document})
 
-    def export_results_to_csv(self, collection: str, model: Model, base_path: Path) -> None:
+    def export_results_to_csv(
+        self, collection: str, dataset: Dataset, with_features: bool, model: Model, base_path: Path
+    ) -> None:
         if self.__collection is None:
             raise ValueError("Collection not initialized.")
 
         match collection:
             case "centralized":
-                best = self.__collection.find({"model": model.value}).sort("average_scoring.mean_f1", -1)[0]
+                best = self.__collection.find({"model": model.value, "pre-processing.features": with_features}).sort(
+                    "average_scoring.mean_f1", -1
+                )[0]
 
                 rows = []
 
-                # Individual scores
-                idx = 2
-                for subject in best["individual_scoring"]:
+                for run in best["training_runs"]:
                     rows.append(
                         [
-                            idx,
-                            round(subject["testing_set"]["accuracy"], 4),
-                            round(subject["testing_set"]["recall"], 4),
-                            round(subject["testing_set"]["precision"], 4),
-                            round(subject["testing_set"]["f1"], 4),
+                            run["participant_leave_out"],
+                            round(run["scores"]["testing_set"]["accuracy"], 4),
+                            round(run["scores"]["testing_set"]["recall"], 4),
+                            round(run["scores"]["testing_set"]["precision"], 4),
+                            round(run["scores"]["testing_set"]["f1"], 4),
                         ]
                     )
-                    idx += 1
 
-                # Average scores
+                # Get average scores from training runs on the training set
+                accs, precs, recs, f1s = [], [], [], []
+                for run in best["training_runs"]:
+                    accs.append(run["scores"]["training_set"]["accuracy"])
+                    precs.append(run["scores"]["training_set"]["precision"])
+                    recs.append(run["scores"]["training_set"]["recall"])
+                    f1s.append(run["scores"]["training_set"]["f1"])
+
+                # Average training scores
                 rows.append(
                     [
-                        "Average",
+                        "Average Training Score",
+                        round(statistics.fmean(accs), 4),
+                        round(statistics.fmean(recs), 4),
+                        round(statistics.fmean(precs), 4),
+                        round(statistics.fmean(f1s), 4),
+                    ]
+                )
+
+                # Average testing scores
+                rows.append(
+                    [
+                        "Average LOSO Score",
                         round(best["average_scoring"]["mean_accuracy"], 4),
                         round(best["average_scoring"]["mean_recall"], 4),
                         round(best["average_scoring"]["mean_precision"], 4),
@@ -165,40 +187,60 @@ class ExportService:
                     ]
                 )
 
-                # Centralized scores
-                rows.append(
-                    [
-                        "Centralized",
-                        round(best["centralized_scoring"]["testing_set"]["accuracy"], 4),
-                        round(best["centralized_scoring"]["testing_set"]["recall"], 4),
-                        round(best["centralized_scoring"]["testing_set"]["precision"], 4),
-                        round(best["centralized_scoring"]["testing_set"]["f1"], 4),
-                    ]
-                )
+                df = pd.DataFrame(data=rows, columns=["LOSO", "Accuracy", "Recall", "Precision", "F1"])
 
-                df = pd.DataFrame(data=rows, columns=["Subject", "Accuracy", "Recall", "Precision", "F1"])
-                df.to_csv(base_path / collection / f"{model.value}_{best['_id']}.csv", index=False)
+                if dataset == Dataset.STRESS:
+                    export_path = base_path / "stress"
+                elif dataset == Dataset.NURSE:
+                    export_path = base_path / "nurse"
+                else:
+                    raise ValueError("Dataset not recognized.")
+
+                if with_features:
+                    export_path = export_path / collection / "with_features"
+                else:
+                    export_path = export_path / collection / "no_features"
+
+                df.to_csv(export_path / f"{model.value}_{best['_id']}.csv", index=False)
             case "individual":
-                best = self.__collection.find({"model": model.value}).sort("average_scoring.mean_f1", -1)[0]
+                best = self.__collection.find({"model": model.value, "pre-processing.features": with_features}).sort(
+                    "average_scoring.mean_f1", -1
+                )[0]
 
                 rows = []
 
                 # Individual scores
-                for subject in best["subjects"]:
+                accs, precs, recs, f1s = [], [], [], []
+                for subject in best["participants"]:
                     rows.append(
                         [
-                            subject["subject"],
+                            subject["participant"],
                             round(subject["scores"]["testing_set"]["accuracy"], 4),
                             round(subject["scores"]["testing_set"]["recall"], 4),
                             round(subject["scores"]["testing_set"]["precision"], 4),
                             round(subject["scores"]["testing_set"]["f1"], 4),
                         ]
                     )
+                    accs.append(subject["scores"]["training_set"]["accuracy"])
+                    precs.append(subject["scores"]["training_set"]["precision"])
+                    recs.append(subject["scores"]["training_set"]["recall"])
+                    f1s.append(subject["scores"]["training_set"]["f1"])
 
-                # Average scores
+                # Average training scores
                 rows.append(
                     [
-                        "Average",
+                        "Average Training Score",
+                        round(statistics.fmean(accs), 4),
+                        round(statistics.fmean(recs), 4),
+                        round(statistics.fmean(precs), 4),
+                        round(statistics.fmean(f1s), 4),
+                    ]
+                )
+
+                # Average testing scores
+                rows.append(
+                    [
+                        "Average Testing Score",
                         round(best["average_scoring"]["mean_accuracy"], 4),
                         round(best["average_scoring"]["mean_recall"], 4),
                         round(best["average_scoring"]["mean_precision"], 4),
@@ -206,50 +248,80 @@ class ExportService:
                     ]
                 )
 
-                df = pd.DataFrame(data=rows, columns=["Subject", "Accuracy", "Recall", "Precision", "F1"])
-                df.to_csv(base_path / collection / f"{model.value}_{best['_id']}.csv", index=False)
+                if dataset == Dataset.STRESS:
+                    export_path = base_path / "stress"
+                elif dataset == Dataset.NURSE:
+                    export_path = base_path / "nurse"
+                else:
+                    raise ValueError("Dataset not recognized.")
+
+                if with_features:
+                    export_path = export_path / collection / "with_features"
+                else:
+                    export_path = export_path / collection / "no_features"
+
+                df = pd.DataFrame(data=rows, columns=["Participant", "Accuracy", "Recall", "Precision", "F1"])
+                df.to_csv(export_path / f"{model.value}_{best['_id']}.csv", index=False)
             case "federated":
+                best = self.__collection.find({"model": model.value, "pre-processing.features": with_features}).sort(
+                    "average_client_scoring.mean_f1", -1
+                )[0]
+
                 rows = []
 
-                # Individual scores
-                for subject in range(2, 36):
-                    document = self.__collection.find_one({"model": model.value, "subject_nr": subject})
+                clients: dict = best["training_runs"][0]["clients"]
+                del clients["server"]
+                # Sort clients by name
+                sorted_clients = OrderedDict(sorted(clients.items(), key=lambda item: int(item[0])))
+
+                for client_name, client_data in sorted_clients.items():
                     rows.append(
                         [
-                            document["subject_nr"],
-                            round(document["rounds"][-1]["testing_set"]["accuracy"], 4),
-                            round(document["rounds"][-1]["testing_set"]["recall"], 4),
-                            round(document["rounds"][-1]["testing_set"]["precision"], 4),
-                            round(document["rounds"][-1]["testing_set"]["f1"], 4),
+                            client_name,
+                            round(list(client_data["round"].values())[-1]["scores"]["testing_set"]["accuracy"], 4),
+                            round(list(client_data["round"].values())[-1]["scores"]["testing_set"]["recall"], 4),
+                            round(list(client_data["round"].values())[-1]["scores"]["testing_set"]["precision"], 4),
+                            round(list(client_data["round"].values())[-1]["scores"]["testing_set"]["f1"], 4),
                         ]
                     )
 
-                # Average scores
-                average = self.__collection.find_one({"model": model.value, "subject_nr": "average"})
+                # Average training scores
                 rows.append(
                     [
-                        "Average",
-                        round(average["average_scoring"]["mean_accuracy"], 4),
-                        round(average["average_scoring"]["mean_recall"], 4),
-                        round(average["average_scoring"]["mean_precision"], 4),
-                        round(average["average_scoring"]["mean_f1"], 4),
+                        "Average Client Score",
+                        "not measured",
+                        "not measured",
+                        "not measured",
+                        round(best["average_client_scoring"]["mean_f1"], 4),
                     ]
                 )
 
-                # Centralized Scoring
-                server = self.__collection.find_one({"model": model.value, "subject_nr": "server"})
+                # Average LOSO score
                 rows.append(
                     [
-                        "Centralized",
-                        round(server["rounds"][-1]["testing_set"]["accuracy"], 4),
-                        round(server["rounds"][-1]["testing_set"]["recall"], 4),
-                        round(server["rounds"][-1]["testing_set"]["precision"], 4),
-                        round(server["rounds"][-1]["testing_set"]["f1"], 4),
+                        "Average LOSO Score",
+                        round(best["average_server_scoring"]["mean_accuracy"], 4),
+                        round(best["average_server_scoring"]["mean_recall"], 4),
+                        round(best["average_server_scoring"]["mean_precision"], 4),
+                        round(best["average_server_scoring"]["mean_f1"], 4),
                     ]
                 )
 
-                df = pd.DataFrame(data=rows, columns=["Subject", "Accuracy", "Recall", "Precision", "F1"])
-                df.to_csv(base_path / collection / f"{model.value}.csv", index=False)
+                df = pd.DataFrame(data=rows, columns=["Client", "Accuracy", "Recall", "Precision", "F1"])
+
+                if dataset == Dataset.STRESS:
+                    export_path = base_path / "stress"
+                elif dataset == Dataset.NURSE:
+                    export_path = base_path / "nurse"
+                else:
+                    raise ValueError("Dataset not recognized.")
+
+                if with_features:
+                    export_path = export_path / collection / "with_features"
+                else:
+                    export_path = export_path / collection / "no_features"
+
+                df.to_csv(export_path / f"{model.value}_{best['_id']}.csv", index=False)
 
     def export_pre_processing_comparison(self, base_path: Path) -> None:
         if self.__collection is None:

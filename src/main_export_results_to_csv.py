@@ -6,10 +6,14 @@ BASE_PATH = Path(__file__).parent.parent / "results" / "csv"
 
 # Exports a MongoDB collection to a CSV file
 if __name__ == "__main__":
-    arg_service = ArgumentService(database=True, collection=True, model=True)
+    arg_service = ArgumentService(database=True, collection=True, model=True, dataset=True, features=True)
     database = arg_service.get_database()
     collection = arg_service.get_collection()
-    model = arg_service.get_model()
+    model = arg_service.get_models()[0]
+    dataset = arg_service.get_dataset()
+    with_features = arg_service.get_features()[0]
 
     export_service = ExportService(database=database, collection=collection)
-    export_service.export_results_to_csv(collection=collection, model=model, base_path=BASE_PATH)
+    export_service.export_results_to_csv(
+        collection=collection, dataset=dataset, model=model, with_features=with_features, base_path=BASE_PATH
+    )

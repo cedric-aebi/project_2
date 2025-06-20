@@ -6,8 +6,6 @@ from pathlib import Path
 import joblib
 
 from enums.Model import Model
-from enums.ResamplingMethod import ResamplingMethod
-from enums.ScalingMethod import ScalingMethod
 from model.ShallowNNModel import ShallowNNModel
 from model.LogisticRegressionModel import LogisticRegressionModel
 from model.XGBoostModel import XGBoostModel

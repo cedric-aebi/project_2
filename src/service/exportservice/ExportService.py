@@ -272,7 +272,10 @@ class ExportService:
                 clients: dict = best["training_runs"][0]["clients"]
                 del clients["server"]
                 # Sort clients by name
-                sorted_clients = OrderedDict(sorted(clients.items(), key=lambda item: int(item[0])))
+                if dataset == Dataset.NURSE:
+                    sorted_clients = OrderedDict(sorted(clients.items(), key=lambda item: item[0]))
+                else:
+                    sorted_clients = OrderedDict(sorted(clients.items(), key=lambda item: int(item[0])))
 
                 for client_name, client_data in sorted_clients.items():
                     rows.append(
@@ -323,77 +326,48 @@ class ExportService:
 
                 df.to_csv(export_path / f"{model.value}_{best['_id']}.csv", index=False)
 
-    def export_pre_processing_comparison(self, base_path: Path) -> None:
+    def export_pre_processing_comparison(self, base_path: Path, with_features: bool) -> None:
         if self.__collection is None:
             raise ValueError("Collection not initialized.")
 
         documents = []
 
-        # Logistic Regression Models
-        document = self.__collection.find_one(
-            {
-                "model": Model.LOGISTIC_REGRESSION.value,
-                "pre-processing.resampling.method": None,
-                "pre-processing.scaling.method": None,
-            }
-        )
-        documents.append(document)
-        document = self.__collection.find({"model": Model.LOGISTIC_REGRESSION.value}).sort(
-            "centralized_scoring.testing_set.f1", -1
-        )[0]
-        documents.append(document)
-        document = self.__collection.find(
-            {
-                "model": Model.LOGISTIC_REGRESSION.value,
-                "pre-processing.resampling.method": {"$ne": document["pre-processing"]["resampling"]["method"]},
-            }
-        ).sort("centralized_scoring.testing_set.f1", -1)[0]
-        documents.append(document)
-
         # XGBoost Models
-        document = self.__collection.find_one(
-            {
-                "model": Model.XGBOOST.value,
-                "pre-processing.resampling.method": None,
-                "pre-processing.scaling.method": None,
-            }
-        )
-        documents.append(document)
-        document = self.__collection.find({"model": Model.XGBOOST.value}).sort(
-            "centralized_scoring.testing_set.f1", -1
-        )[0]
-        documents.append(document)
-        document = self.__collection.find(
-            {
-                "model": Model.XGBOOST.value,
-                "pre-processing.resampling.method": {"$ne": document["pre-processing"]["resampling"]["method"]},
-            }
-        ).sort("centralized_scoring.testing_set.f1", -1)[0]
-        documents.append(document)
+        xg_documents = self.__collection.find(
+            {"model": Model.XGBOOST.value, "pre-processing.features": with_features}
+        ).sort("average_scoring.mean_f1", -1)
+        documents.append({"filler": "XGBoost"})
+        documents.extend(xg_documents)
 
-        # DNN Models
-        document = self.__collection.find_one(
-            {
-                "model": Model.SHALLOW_NN.value,
-                "pre-processing.resampling.method": None,
-                "pre-processing.scaling.method": None,
-            }
-        )
-        documents.append(document)
-        document = self.__collection.find({"model": Model.SHALLOW_NN.value}).sort(
-            "centralized_scoring.testing_set.f1", -1
-        )[0]
-        documents.append(document)
-        document = self.__collection.find(
-            {
-                "model": Model.SHALLOW_NN.value,
-                "pre-processing.resampling.method": {"$ne": document["pre-processing"]["resampling"]["method"]},
-            }
-        ).sort("centralized_scoring.testing_set.f1", -1)[0]
-        documents.append(document)
+        # NN Models
+        nn_documents = self.__collection.find(
+            {"model": Model.SHALLOW_NN.value, "pre-processing.features": with_features}
+        ).sort("average_scoring.mean_f1", -1)
+        documents.append({"filler": "Neural Network"})
+        documents.extend(nn_documents)
+
+        # Logistic Regression Models
+        lr_documents = self.__collection.find(
+            {"model": Model.LOGISTIC_REGRESSION.value, "pre-processing.features": with_features}
+        ).sort("average_scoring.mean_f1", -1)
+        documents.append({"filler": "Logistic Regression"})
+        documents.extend(lr_documents)
 
         rows = []
         for document in documents:
+            if "filler" in document:
+                rows.append(
+                    {
+                        "Resampling": document["filler"],
+                        "Normalization": document["filler"],
+                        "Accuracy": document["filler"],
+                        "Recall": document["filler"],
+                        "Precision": document["filler"],
+                        "F1": document["filler"],
+                    }
+                )
+                continue
+
             resampling = (
                 document["pre-processing"]["resampling"]["method"]
                 if document["pre-processing"]["resampling"]["method"] is not None
@@ -406,18 +380,16 @@ class ExportService:
             )
             rows.append(
                 {
-                    "Model": document["model"],
-                    "Resampling/Normalization": f"{resampling}/{scaling}",
-                    "Accuracy": round(document["centralized_scoring"]["testing_set"]["accuracy"], 4),
-                    "Recall": round(document["centralized_scoring"]["testing_set"]["recall"], 4),
-                    "Precision": round(document["centralized_scoring"]["testing_set"]["precision"], 4),
-                    "F1": round(document["centralized_scoring"]["testing_set"]["f1"], 4),
+                    "Resampling": resampling,
+                    "Normalization": scaling,
+                    "Accuracy": round(document["average_scoring"]["mean_accuracy"], 4),
+                    "Recall": round(document["average_scoring"]["mean_recall"], 4),
+                    "Precision": round(document["average_scoring"]["mean_precision"], 4),
+                    "F1": round(document["average_scoring"]["mean_f1"], 4),
                 }
             )
 
-        df = pd.DataFrame(
-            data=rows, columns=["Model", "Resampling/Normalization", "Accuracy", "Recall", "Precision", "F1"]
-        )
+        df = pd.DataFrame(data=rows, columns=["Resampling", "Normalization", "Accuracy", "Recall", "Precision", "F1"])
         df.to_csv(base_path / "comparison.csv", index=False)
 
     @staticmethod

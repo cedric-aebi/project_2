@@ -6,9 +6,10 @@ from service.exportservice.ExportService import ExportService
 
 # Exports a csv with the pre-processing comparison results
 if __name__ == "__main__":
-    arg_service = ArgumentService(database=True)
+    arg_service = ArgumentService(database=True, dataset=True, features=True)
     database = arg_service.get_database()
     dataset = arg_service.get_dataset()
+    with_features = arg_service.get_features()[0]
 
     if dataset == Dataset.STRESS:
         base_path = Path(__file__).parent.parent / "results" / "csv" / "stress" / "pre-processing"
@@ -16,4 +17,4 @@ if __name__ == "__main__":
         base_path = Path(__file__).parent.parent / "results" / "csv" / "nurse" / "pre-processing"
 
     export_service = ExportService(database=database, collection="individual")
-    export_service.export_pre_processing_comparison(base_path=base_path)
+    export_service.export_pre_processing_comparison(base_path=base_path, with_features=with_features)
